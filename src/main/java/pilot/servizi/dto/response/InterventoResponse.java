@@ -1,5 +1,6 @@
 package pilot.servizi.dto.response;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record InterventoResponse(
@@ -13,5 +14,5 @@ public record InterventoResponse(
         String stato,
         LocalDateTime dataApertura,
         LocalDateTime dataChiusura,
-        Double costoManodopera
+        BigDecimal costoManodopera
 ) {}

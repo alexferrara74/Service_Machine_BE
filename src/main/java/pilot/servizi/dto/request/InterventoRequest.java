@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record InterventoRequest(
@@ -16,5 +17,5 @@ public record InterventoRequest(
         @NotBlank(message = "Lo stato è obbligatorio") @Size(max = 50) String stato,
         @NotNull(message = "La data di apertura è obbligatoria") LocalDateTime dataApertura,
         LocalDateTime dataChiusura,
-        @PositiveOrZero(message = "Il costo non può essere negativo") Double costoManodopera
+        @PositiveOrZero(message = "Il costo non può essere negativo") BigDecimal costoManodopera
 ) {}

@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 @Entity
 @Table(name = "interventi")
@@ -12,9 +13,8 @@ import java.time.LocalDateTime;
 public class Interventi {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
     private Long interventoId;
+
     private Long clienteId;
     private String matricolaAttrezzatura;
     private String titolo;
@@ -23,5 +23,5 @@ public class Interventi {
     private String stato;
     private LocalDateTime dataApertura;
     private LocalDateTime dataChiusura;
-    private Double costoManodopera;
+    private BigDecimal costoManodopera;
 }
