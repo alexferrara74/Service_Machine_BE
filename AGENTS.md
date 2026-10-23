@@ -28,9 +28,9 @@ src/main/java/pilot/servizi/
 │   ├── request/   # Java Records immutabili per input client (@Valid, @NotNull, @NotBlank, @Size)
 │   └── response/  # Java Records immutabili per risposte JSON
 ├── entity/        # Entità JPA con mappatura esplicita colonne, tabelle, indici e vincoli
-├── log/           # Eccezioni personalizzate (es. ResourceNotFoundException)
+├── log/           # Gestione errori centralizzata (ErrorConstants, GlobalExceptionHandler, ResourceNotFoundException)
 ├── repository/    # Interfacce Spring Data JpaRepository
-└── service/       # Business logic transazionale, validazioni obbligatorie, mapping
+└── service/       # Business logic transazionale, validazioni obbligatorie mirate, mapping
 ```
 
 ### Regole per Layer:
@@ -61,20 +61,32 @@ src/main/java/pilot/servizi/
    - Attenzione: **MAI** aggiungere metodi finder per proprietà non esistenti sull'entità JPA (altrimenti il container Spring fallisce all'avvio con `PropertyReferenceException`).
 
 4. **Service**:
-   - Annotare la classe con `@Service`, `@RequiredArgsConstructor` e `@Transactional(readOnly = true)`.
+   - Annotare la classe con `@Slf4j`, `@Service`, `@RequiredArgsConstructor` e `@Transactional(readOnly = true)`.
    - Metodi di scrittura (`create`, `update`, `delete`, `replace`) annotati esplicitamente con `@Transactional`.
-   - **Validazione Campi Obbligatori**: Ogni metodo `create(...)` e `update(...)` DEVE invocare un metodo privato `validateRequest(dto)` che verifichi:
+   - **Validazione Mirata Campi Obbligatori**: Ogni metodo `create(...)` e `update(...)` DEVE invocare un metodo privato `validateRequest(dto, operation)` che verifichi:
      - Nullability dell'oggetto request.
      - Stringhe obbligatorie non vuote e senza solo spazi (`dto.field() == null || dto.field().trim().isEmpty()`).
+     - Lunghezze massime coerenti con lo schema del DB.
      - Valori numerici nei range ammessi (es. quantità >= 1 o non negativa, importi >= 0).
-     - Esistenza delle chiavi esterne nei rispettivi repository prima del salvataggio.
+     - Formato di campi specifici (es. email con `@` e `.`).
+     - Esistenza preventiva delle chiavi esterne nei rispettivi repository prima del salvataggio.
      - Unicità dei campi con vincolo univoco (es. `existsByCodice`, `existsByMatricola`).
+   - **Logging dello Stato di Errore**: In caso di errore di validazione o mancata corrispondenza, registrare SEMPRE il log di warning tramite `log.warn(...)` utilizzando i template e gli stati definiti in `ErrorConstants` (es. `ErrorConstants.ERR_VALIDATION`, `ErrorConstants.ERR_NOT_FOUND`, `ErrorConstants.ERR_CONFLICT`).
    - Sollevare le eccezioni appropriate:
-     - `IllegalArgumentException` per parametri mancanti o errati.
-     - `ResourceNotFoundException` per risorse o FK inesistenti (mappata su HTTP 404).
-     - `DataIntegrityViolationException` per conflitti di unicità o vincoli d'integrità (mappata su HTTP 409).
+     - `IllegalArgumentException` per parametri mancanti o errati (HTTP 400).
+     - `ResourceNotFoundException` per risorse o FK inesistenti (HTTP 404).
+     - `DataIntegrityViolationException` per conflitti di unicità o vincoli d'integrità (HTTP 409).
 
-5. **Controller**:
+5. **Gestione Errori Centralizzata (`GlobalExceptionHandler` & `ErrorConstants`)**:
+   - La classe `GlobalExceptionHandler` (`@RestControllerAdvice`) intercetta le eccezioni dell'applicazione e le converte nel record standard `ErrorResponse`:
+     - `ResourceNotFoundException` ➡️ HTTP 404 Not Found.
+     - `DataIntegrityViolationException` ➡️ HTTP 409 Conflict.
+     - `IllegalArgumentException`, `IllegalStateException` ➡️ HTTP 400 Bad Request.
+     - `MethodArgumentNotValidException` ➡️ HTTP 400 Bad Request (estrazione messaggi di errore specifici dei campi).
+     - `Exception` generica ➡️ HTTP 500 Internal Server Error.
+   - Tutte le costanti dei messaggi e degli stati di errore risiedono in `ErrorConstants`.
+
+6. **Controller**:
    - Annotare la classe con `@RestController`, `@RequestMapping("/api/...")`, `@Tag` (per Swagger) e `@RequiredArgsConstructor`.
    - Utilizzare `@Valid @RequestBody` per abilitare la validazione automatica dei DTO.
    - Specificare `@ResponseStatus(HttpStatus.CREATED)` per i metodi POST.
@@ -94,9 +106,9 @@ src/main/java/pilot/servizi/
 - **IMPORTANTE**: In modalità `validate`, Hibernate esegue un controllo rigoroso tra i tipi Java dell'entità e le colonne MySQL all'avvio dell'applicazione.
 - Se viene modificata un'entità, assicurarsi che:
   - Il nome della colonna coincida (`name = "..."`).
-  - Il tipo di dato coincida (es. non confondere `int` e `bigint`).
+  - Il tipo di dato coincida (es. `int` in MySQL ➡️ `Integer` in Java, mai `Long`).
   - La chiave primaria corrisponda (es. `doc_id` in `storia_noleggi` è `int NOT NULL`, non `bigint`).
-  - L'eventuale autoincrement sia presente sia su MySQL che con `@GeneratedValue(strategy = GenerationType.IDENTITY)`. (Nota: `local_clienti` e `storia_noleggi` hanno ID assegnati dall'esterno e non autoincrementati nel DB!).
+  - L'eventuale autoincrement sia presente sia su MySQL che con `@GeneratedValue(strategy = GenerationType.IDENTITY)`.
 
 ---
 

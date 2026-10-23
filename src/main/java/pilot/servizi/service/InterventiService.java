@@ -1,12 +1,14 @@
 package pilot.servizi.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pilot.servizi.dto.request.InterventoRequest;
 import pilot.servizi.dto.response.InterventoResponse;
 import pilot.servizi.entity.Clienti;
 import pilot.servizi.entity.Interventi;
+import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.AttrezzatureRepository;
 import pilot.servizi.repository.ClientiRepository;
@@ -15,6 +17,7 @@ import pilot.servizi.repository.InterventiRepository;
 import java.math.BigDecimal;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -26,13 +29,17 @@ public class InterventiService {
 
     @Transactional
     public InterventoResponse create(InterventoRequest dto) {
-        validateRequest(dto);
+        validateRequest(dto, "create");
 
         Clienti cliente = clientiRepo.findById(dto.clienteId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente non trovato con ID " + dto.clienteId()));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "create", ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
+                    return new ResourceNotFoundException(ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
+                });
 
         if (!attrezzatureRepo.existsByMatricola(dto.matricolaAttrezzatura().trim())) {
-            throw new ResourceNotFoundException("Attrezzatura non trovata con matricola: " + dto.matricolaAttrezzatura());
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "create", ErrorConstants.ATTREZZATURA_NON_TROVATA_MATRICOLA + dto.matricolaAttrezzatura());
+            throw new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_NON_TROVATA_MATRICOLA + dto.matricolaAttrezzatura());
         }
 
         Interventi e = new Interventi();
@@ -43,7 +50,10 @@ public class InterventiService {
 
     public InterventoResponse getById(Long id) {
         Interventi e = interventiRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Intervento non trovato con ID " + id));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "getById", ErrorConstants.INTERVENTO_NON_TROVATO + id);
+                    return new ResourceNotFoundException(ErrorConstants.INTERVENTO_NON_TROVATO + id);
+                });
         Clienti c = clientiRepo.findById(e.getClienteId()).orElse(null);
         return toResponse(e, c);
     }
@@ -64,16 +74,23 @@ public class InterventiService {
 
     @Transactional
     public InterventoResponse update(Long id, InterventoRequest dto) {
-        validateRequest(dto);
+        validateRequest(dto, "update");
 
         Interventi e = interventiRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Intervento non trovato con ID " + id));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.INTERVENTO_NON_TROVATO + id);
+                    return new ResourceNotFoundException(ErrorConstants.INTERVENTO_NON_TROVATO + id);
+                });
 
         Clienti cliente = clientiRepo.findById(dto.clienteId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente non trovato con ID " + dto.clienteId()));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
+                    return new ResourceNotFoundException(ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
+                });
 
         if (!attrezzatureRepo.existsByMatricola(dto.matricolaAttrezzatura().trim())) {
-            throw new ResourceNotFoundException("Attrezzatura non trovata con matricola: " + dto.matricolaAttrezzatura());
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.ATTREZZATURA_NON_TROVATA_MATRICOLA + dto.matricolaAttrezzatura());
+            throw new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_NON_TROVATA_MATRICOLA + dto.matricolaAttrezzatura());
         }
 
         apply(dto, e);
@@ -83,35 +100,44 @@ public class InterventiService {
     @Transactional
     public void delete(Long id) {
         if (!interventiRepo.existsById(id)) {
-            throw new ResourceNotFoundException("Intervento non trovato con ID " + id);
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.INTERVENTO_NON_TROVATO + id);
+            throw new ResourceNotFoundException(ErrorConstants.INTERVENTO_NON_TROVATO + id);
         }
         interventiRepo.deleteById(id);
     }
 
-    private void validateRequest(InterventoRequest dto) {
+    private void validateRequest(InterventoRequest dto, String operation) {
         if (dto == null) {
-            throw new IllegalArgumentException("I dati dell'intervento non possono essere null");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.INTERVENTO_DTO_NULL);
+            throw new IllegalArgumentException(ErrorConstants.INTERVENTO_DTO_NULL);
         }
         if (dto.clienteId() == null) {
-            throw new IllegalArgumentException("L'ID cliente è obbligatorio");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.INTERVENTO_CLIENTE_OBBLIGATORIO);
+            throw new IllegalArgumentException(ErrorConstants.INTERVENTO_CLIENTE_OBBLIGATORIO);
         }
         if (dto.matricolaAttrezzatura() == null || dto.matricolaAttrezzatura().trim().isEmpty()) {
-            throw new IllegalArgumentException("La matricola attrezzatura è obbligatoria");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.INTERVENTO_MATRICOLA_OBBLIGATORIA);
+            throw new IllegalArgumentException(ErrorConstants.INTERVENTO_MATRICOLA_OBBLIGATORIA);
         }
         if (dto.titolo() == null || dto.titolo().trim().isEmpty()) {
-            throw new IllegalArgumentException("Il titolo dell'intervento è obbligatorio");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.INTERVENTO_TITOLO_OBBLIGATORIO);
+            throw new IllegalArgumentException(ErrorConstants.INTERVENTO_TITOLO_OBBLIGATORIO);
         }
         if (dto.stato() == null || dto.stato().trim().isEmpty()) {
-            throw new IllegalArgumentException("Lo stato dell'intervento è obbligatorio");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.INTERVENTO_STATO_OBBLIGATORIO);
+            throw new IllegalArgumentException(ErrorConstants.INTERVENTO_STATO_OBBLIGATORIO);
         }
         if (dto.dataApertura() == null) {
-            throw new IllegalArgumentException("La data di apertura è obbligatoria");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.INTERVENTO_DATA_APERTURA_OBBLIGATORIA);
+            throw new IllegalArgumentException(ErrorConstants.INTERVENTO_DATA_APERTURA_OBBLIGATORIA);
         }
         if (dto.dataChiusura() != null && dto.dataChiusura().isBefore(dto.dataApertura())) {
-            throw new IllegalArgumentException("La data di chiusura non può precedere quella di apertura");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.INTERVENTO_DATE_INCOERENTI);
+            throw new IllegalArgumentException(ErrorConstants.INTERVENTO_DATE_INCOERENTI);
         }
         if (dto.costoManodopera() != null && dto.costoManodopera().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Il costo della manodopera non può essere negativo");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.INTERVENTO_COSTO_NEGATIVO);
+            throw new IllegalArgumentException(ErrorConstants.INTERVENTO_COSTO_NEGATIVO);
         }
     }
 

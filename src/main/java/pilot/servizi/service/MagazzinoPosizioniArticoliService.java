@@ -1,6 +1,7 @@
 package pilot.servizi.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -8,12 +9,14 @@ import pilot.servizi.dto.request.PosizioneArticoloRequest;
 import pilot.servizi.dto.response.PosizioneArticoloResponse;
 import pilot.servizi.entity.MagazzinoDigitale;
 import pilot.servizi.entity.MagazzinoPosizioniArticoli;
+import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.MagazzinoDigitaleRepository;
 import pilot.servizi.repository.MagazzinoPosizioniArticoliRepository;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -24,14 +27,18 @@ public class MagazzinoPosizioniArticoliService {
 
     @Transactional
     public PosizioneArticoloResponse create(PosizioneArticoloRequest dto) {
-        validateRequest(dto);
+        validateRequest(dto, "create");
 
         MagazzinoDigitale ubicazione = magazzinoRepo.findById(dto.ubicazioneId())
-                .orElseThrow(() -> new ResourceNotFoundException("Ubicazione non trovata con ID " + dto.ubicazioneId()));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "create", ErrorConstants.MAGAZZINO_NON_TROVATO + dto.ubicazioneId());
+                    return new ResourceNotFoundException(ErrorConstants.MAGAZZINO_NON_TROVATO + dto.ubicazioneId());
+                });
 
         if (repo.existsByUbicazioneIdAndArticoloId(dto.ubicazioneId(), dto.articoloId())) {
-            throw new DataIntegrityViolationException("Articolo " + dto.articoloId()
-                    + " già presente nell'ubicazione " + dto.ubicazioneId());
+            String msg = ErrorConstants.POSIZIONE_DUPLICATA + "Articolo " + dto.articoloId() + " in Ubicazione " + dto.ubicazioneId();
+            log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "create", msg);
+            throw new DataIntegrityViolationException(msg);
         }
 
         MagazzinoPosizioniArticoli e = new MagazzinoPosizioniArticoli();
@@ -41,7 +48,10 @@ public class MagazzinoPosizioniArticoliService {
 
     public PosizioneArticoloResponse getById(Long id) {
         MagazzinoPosizioniArticoli e = repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Posizione articolo non trovata con ID " + id));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "getById", ErrorConstants.POSIZIONE_NON_TROVATA + id);
+                    return new ResourceNotFoundException(ErrorConstants.POSIZIONE_NON_TROVATA + id);
+                });
         String codiceUbicazione = magazzinoRepo.findById(e.getUbicazioneId())
                 .map(MagazzinoDigitale::getCodiceUbicazione).orElse(null);
         return toResponse(e, codiceUbicazione);
@@ -73,19 +83,26 @@ public class MagazzinoPosizioniArticoliService {
 
     @Transactional
     public PosizioneArticoloResponse update(Long id, PosizioneArticoloRequest dto) {
-        validateRequest(dto);
+        validateRequest(dto, "update");
 
         MagazzinoPosizioniArticoli e = repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Posizione articolo non trovata con ID " + id));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.POSIZIONE_NON_TROVATA + id);
+                    return new ResourceNotFoundException(ErrorConstants.POSIZIONE_NON_TROVATA + id);
+                });
 
         MagazzinoDigitale ubicazione = magazzinoRepo.findById(dto.ubicazioneId())
-                .orElseThrow(() -> new ResourceNotFoundException("Ubicazione non trovata con ID " + dto.ubicazioneId()));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.MAGAZZINO_NON_TROVATO + dto.ubicazioneId());
+                    return new ResourceNotFoundException(ErrorConstants.MAGAZZINO_NON_TROVATO + dto.ubicazioneId());
+                });
 
         if (!e.getUbicazioneId().equals(dto.ubicazioneId()) || !e.getArticoloId().equals(dto.articoloId())) {
             repo.findByUbicazioneIdAndArticoloId(dto.ubicazioneId(), dto.articoloId()).ifPresent(other -> {
                 if (!other.getId().equals(id)) {
-                    throw new DataIntegrityViolationException("Articolo " + dto.articoloId()
-                            + " già presente nell'ubicazione " + dto.ubicazioneId());
+                    String msg = ErrorConstants.POSIZIONE_DUPLICATA + "Articolo " + dto.articoloId() + " in Ubicazione " + dto.ubicazioneId();
+                    log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "update", msg);
+                    throw new DataIntegrityViolationException(msg);
                 }
             });
         }
@@ -97,7 +114,8 @@ public class MagazzinoPosizioniArticoliService {
     @Transactional
     public void delete(Long id) {
         if (!repo.existsById(id)) {
-            throw new ResourceNotFoundException("Posizione articolo non trovata con ID " + id);
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.POSIZIONE_NON_TROVATA + id);
+            throw new ResourceNotFoundException(ErrorConstants.POSIZIONE_NON_TROVATA + id);
         }
         repo.deleteById(id);
     }
@@ -106,18 +124,22 @@ public class MagazzinoPosizioniArticoliService {
         return repo.sumQuantitaByArticoloId(articoloId);
     }
 
-    private void validateRequest(PosizioneArticoloRequest dto) {
+    private void validateRequest(PosizioneArticoloRequest dto, String operation) {
         if (dto == null) {
-            throw new IllegalArgumentException("I dati della posizione articolo non possono essere null");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.POSIZIONE_DTO_NULL);
+            throw new IllegalArgumentException(ErrorConstants.POSIZIONE_DTO_NULL);
         }
         if (dto.ubicazioneId() == null) {
-            throw new IllegalArgumentException("L'ID ubicazione è obbligatorio");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.POSIZIONE_UBICAZIONE_OBBLIGATORIA);
+            throw new IllegalArgumentException(ErrorConstants.POSIZIONE_UBICAZIONE_OBBLIGATORIA);
         }
         if (dto.articoloId() == null) {
-            throw new IllegalArgumentException("L'ID articolo è obbligatorio");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.POSIZIONE_ARTICOLO_OBBLIGATORIO);
+            throw new IllegalArgumentException(ErrorConstants.POSIZIONE_ARTICOLO_OBBLIGATORIO);
         }
         if (dto.quantitaPresente() == null || dto.quantitaPresente() < 0) {
-            throw new IllegalArgumentException("La quantità presente non può essere negativa o nulla");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.POSIZIONE_QUANTITA_INVALIDA);
+            throw new IllegalArgumentException(ErrorConstants.POSIZIONE_QUANTITA_INVALIDA);
         }
     }
 

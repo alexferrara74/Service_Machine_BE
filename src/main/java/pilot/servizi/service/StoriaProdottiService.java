@@ -1,17 +1,20 @@
 package pilot.servizi.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pilot.servizi.dto.request.StoriaProdottoRequest;
 import pilot.servizi.dto.response.StoriaProdottoResponse;
 import pilot.servizi.entity.StoriaProdotti;
+import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.ClientiRepository;
 import pilot.servizi.repository.StoriaProdottiRepository;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -22,10 +25,11 @@ public class StoriaProdottiService {
 
     @Transactional
     public StoriaProdottoResponse create(StoriaProdottoRequest dto) {
-        validateRequest(dto);
+        validateRequest(dto, "create");
 
         if (dto.clienteId() != null && !clientiRepo.existsById(dto.clienteId())) {
-            throw new ResourceNotFoundException("Cliente non trovato con ID " + dto.clienteId());
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "create", ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
+            throw new ResourceNotFoundException(ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
         }
 
         StoriaProdotti e = new StoriaProdotti();
@@ -35,7 +39,10 @@ public class StoriaProdottiService {
 
     public StoriaProdottoResponse getById(Long id) {
         return toResponse(repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Record storico prodotti non trovato con ID " + id)));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "getById", ErrorConstants.PRODOTTO_NON_TROVATO + id);
+                    return new ResourceNotFoundException(ErrorConstants.PRODOTTO_NON_TROVATO + id);
+                }));
     }
 
     public List<StoriaProdottoResponse> getAll() {
@@ -56,13 +63,17 @@ public class StoriaProdottiService {
 
     @Transactional
     public StoriaProdottoResponse update(Long id, StoriaProdottoRequest dto) {
-        validateRequest(dto);
+        validateRequest(dto, "update");
 
         StoriaProdotti e = repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Record storico prodotti non trovato con ID " + id));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.PRODOTTO_NON_TROVATO + id);
+                    return new ResourceNotFoundException(ErrorConstants.PRODOTTO_NON_TROVATO + id);
+                });
 
         if (dto.clienteId() != null && !clientiRepo.existsById(dto.clienteId())) {
-            throw new ResourceNotFoundException("Cliente non trovato con ID " + dto.clienteId());
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
+            throw new ResourceNotFoundException(ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
         }
 
         apply(dto, e);
@@ -72,20 +83,28 @@ public class StoriaProdottiService {
     @Transactional
     public void delete(Long id) {
         if (!repo.existsById(id)) {
-            throw new ResourceNotFoundException("Record storico prodotti non trovato con ID " + id);
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.PRODOTTO_NON_TROVATO + id);
+            throw new ResourceNotFoundException(ErrorConstants.PRODOTTO_NON_TROVATO + id);
         }
         repo.deleteById(id);
     }
 
-    private void validateRequest(StoriaProdottoRequest dto) {
+    private void validateRequest(StoriaProdottoRequest dto, String operation) {
         if (dto == null) {
-            throw new IllegalArgumentException("I dati del prodotto non possono essere null");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.PRODOTTO_DTO_NULL);
+            throw new IllegalArgumentException(ErrorConstants.PRODOTTO_DTO_NULL);
         }
         if (dto.codiceArticolo() == null || dto.codiceArticolo().trim().isEmpty()) {
-            throw new IllegalArgumentException("Il codice articolo è obbligatorio");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.PRODOTTO_CODICE_OBBLIGATORIO);
+            throw new IllegalArgumentException(ErrorConstants.PRODOTTO_CODICE_OBBLIGATORIO);
+        }
+        if (dto.codiceArticolo().trim().length() > 50) {
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, "Il codice articolo supera i 50 caratteri");
+            throw new IllegalArgumentException("Il codice articolo supera i 50 caratteri");
         }
         if (dto.quantita() == null || dto.quantita() < 0) {
-            throw new IllegalArgumentException("La quantità è obbligatoria e non può essere negativa");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.PRODOTTO_QUANTITA_INVALIDA);
+            throw new IllegalArgumentException(ErrorConstants.PRODOTTO_QUANTITA_INVALIDA);
         }
     }
 

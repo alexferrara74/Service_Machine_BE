@@ -1,17 +1,20 @@
 package pilot.servizi.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pilot.servizi.dto.request.RicambioRequest;
 import pilot.servizi.dto.response.RicambioResponse;
 import pilot.servizi.entity.Ricambi;
+import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.InterventiRepository;
 import pilot.servizi.repository.RicambisticaInterventiRepository;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -22,11 +25,11 @@ public class RicambisticaInterventiService {
 
     @Transactional
     public RicambioResponse create(RicambioRequest dto) {
-        validateRequest(dto);
+        validateRequest(dto, "create");
 
         if (!interventiRepo.existsById(dto.interventoId())) {
-            throw new ResourceNotFoundException(
-                    "Intervento non trovato con ID " + dto.interventoId());
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "create", ErrorConstants.INTERVENTO_NON_TROVATO + dto.interventoId());
+            throw new ResourceNotFoundException(ErrorConstants.INTERVENTO_NON_TROVATO + dto.interventoId());
         }
 
         Ricambi e = new Ricambi();
@@ -36,14 +39,16 @@ public class RicambisticaInterventiService {
 
     public RicambioResponse getById(Long id) {
         return toResponse(repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Ricambio non trovato con ID " + id)));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "getById", ErrorConstants.RICAMBIO_NON_TROVATO + id);
+                    return new ResourceNotFoundException(ErrorConstants.RICAMBIO_NON_TROVATO + id);
+                }));
     }
 
     public List<RicambioResponse> getByIntervento(Long interventoId) {
         if (!interventiRepo.existsById(interventoId)) {
-            throw new ResourceNotFoundException(
-                    "Intervento non trovato con ID " + interventoId);
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "getByIntervento", ErrorConstants.INTERVENTO_NON_TROVATO + interventoId);
+            throw new ResourceNotFoundException(ErrorConstants.INTERVENTO_NON_TROVATO + interventoId);
         }
         return repo.findByInterventoId(interventoId).stream()
                 .map(this::toResponse)
@@ -64,16 +69,17 @@ public class RicambisticaInterventiService {
 
     @Transactional
     public RicambioResponse update(Long id, RicambioRequest dto) {
-        validateRequest(dto);
+        validateRequest(dto, "update");
 
         Ricambi e = repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Ricambio non trovato con ID " + id));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.RICAMBIO_NON_TROVATO + id);
+                    return new ResourceNotFoundException(ErrorConstants.RICAMBIO_NON_TROVATO + id);
+                });
 
-        if (!e.getInterventoId().equals(dto.interventoId())
-                && !interventiRepo.existsById(dto.interventoId())) {
-            throw new ResourceNotFoundException(
-                    "Intervento non trovato con ID " + dto.interventoId());
+        if (!e.getInterventoId().equals(dto.interventoId()) && !interventiRepo.existsById(dto.interventoId())) {
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.INTERVENTO_NON_TROVATO + dto.interventoId());
+            throw new ResourceNotFoundException(ErrorConstants.INTERVENTO_NON_TROVATO + dto.interventoId());
         }
 
         apply(dto, e);
@@ -83,7 +89,8 @@ public class RicambisticaInterventiService {
     @Transactional
     public void delete(Long id) {
         if (!repo.existsById(id)) {
-            throw new ResourceNotFoundException("Ricambio non trovato con ID " + id);
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.RICAMBIO_NON_TROVATO + id);
+            throw new ResourceNotFoundException(ErrorConstants.RICAMBIO_NON_TROVATO + id);
         }
         repo.deleteById(id);
     }
@@ -91,18 +98,17 @@ public class RicambisticaInterventiService {
     @Transactional
     public void deleteByIntervento(Long interventoId) {
         if (!interventiRepo.existsById(interventoId)) {
-            throw new ResourceNotFoundException(
-                    "Intervento non trovato con ID " + interventoId);
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "deleteByIntervento", ErrorConstants.INTERVENTO_NON_TROVATO + interventoId);
+            throw new ResourceNotFoundException(ErrorConstants.INTERVENTO_NON_TROVATO + interventoId);
         }
         repo.deleteByInterventoId(interventoId);
     }
 
     @Transactional
-    public List<RicambioResponse> replaceByIntervento(Long interventoId,
-                                                      List<RicambioRequest> nuovi) {
+    public List<RicambioResponse> replaceByIntervento(Long interventoId, List<RicambioRequest> nuovi) {
         if (!interventiRepo.existsById(interventoId)) {
-            throw new ResourceNotFoundException(
-                    "Intervento non trovato con ID " + interventoId);
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "replaceByIntervento", ErrorConstants.INTERVENTO_NON_TROVATO + interventoId);
+            throw new ResourceNotFoundException(ErrorConstants.INTERVENTO_NON_TROVATO + interventoId);
         }
         repo.deleteByInterventoId(interventoId);
 
@@ -120,7 +126,7 @@ public class RicambisticaInterventiService {
                             r.quantitaUtilizzata(),
                             r.prezzoUnitario()
                     );
-                    validateRequest(fixed);
+                    validateRequest(fixed, "replaceByIntervento");
                     Ricambi e = new Ricambi();
                     apply(fixed, e);
                     return toResponse(repo.save(e));
@@ -134,27 +140,32 @@ public class RicambisticaInterventiService {
 
     public Double totaleCostoRicambi(Long interventoId) {
         if (!interventiRepo.existsById(interventoId)) {
-            throw new ResourceNotFoundException(
-                    "Intervento non trovato con ID " + interventoId);
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "totaleCostoRicambi", ErrorConstants.INTERVENTO_NON_TROVATO + interventoId);
+            throw new ResourceNotFoundException(ErrorConstants.INTERVENTO_NON_TROVATO + interventoId);
         }
         return repo.sumCostoByInterventoId(interventoId);
     }
 
-    private void validateRequest(RicambioRequest dto) {
+    private void validateRequest(RicambioRequest dto, String operation) {
         if (dto == null) {
-            throw new IllegalArgumentException("I dati del ricambio non possono essere null");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.RICAMBIO_DTO_NULL);
+            throw new IllegalArgumentException(ErrorConstants.RICAMBIO_DTO_NULL);
         }
         if (dto.interventoId() == null) {
-            throw new IllegalArgumentException("L'ID intervento è obbligatorio");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.RICAMBIO_INTERVENTO_OBBLIGATORIO);
+            throw new IllegalArgumentException(ErrorConstants.RICAMBIO_INTERVENTO_OBBLIGATORIO);
         }
         if (dto.articoloId() == null) {
-            throw new IllegalArgumentException("L'ID articolo è obbligatorio");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.RICAMBIO_ARTICOLO_OBBLIGATORIO);
+            throw new IllegalArgumentException(ErrorConstants.RICAMBIO_ARTICOLO_OBBLIGATORIO);
         }
         if (dto.quantitaUtilizzata() == null || dto.quantitaUtilizzata() < 1) {
-            throw new IllegalArgumentException("La quantità utilizzata deve essere almeno 1");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.RICAMBIO_QUANTITA_INVALIDA);
+            throw new IllegalArgumentException(ErrorConstants.RICAMBIO_QUANTITA_INVALIDA);
         }
         if (dto.prezzoUnitario() != null && dto.prezzoUnitario() < 0) {
-            throw new IllegalArgumentException("Il prezzo unitario non può essere negativo");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.RICAMBIO_PREZZO_NEGATIVO);
+            throw new IllegalArgumentException(ErrorConstants.RICAMBIO_PREZZO_NEGATIVO);
         }
     }
 

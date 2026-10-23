@@ -1,17 +1,20 @@
 package pilot.servizi.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pilot.servizi.dto.request.MagazzinoRequest;
 import pilot.servizi.dto.response.MagazzinoResponse;
 import pilot.servizi.entity.MagazzinoDigitale;
+import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.MagazzinoDigitaleRepository;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -21,11 +24,11 @@ public class MagazzinoDigitaleService {
 
     @Transactional
     public MagazzinoResponse create(MagazzinoRequest dto) {
-        validateRequest(dto);
+        validateRequest(dto, "create");
 
         if (repo.existsByCodiceUbicazione(dto.codiceUbicazione().trim())) {
-            throw new DataIntegrityViolationException(
-                    "Ubicazione già esistente con codice: " + dto.codiceUbicazione());
+            log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "create", ErrorConstants.MAGAZZINO_CODICE_DUPLICATO + dto.codiceUbicazione());
+            throw new DataIntegrityViolationException(ErrorConstants.MAGAZZINO_CODICE_DUPLICATO + dto.codiceUbicazione());
         }
 
         MagazzinoDigitale e = new MagazzinoDigitale();
@@ -35,17 +38,22 @@ public class MagazzinoDigitaleService {
 
     public MagazzinoResponse getById(Long id) {
         return toResponse(repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Ubicazione non trovata con ID " + id)));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "getById", ErrorConstants.MAGAZZINO_NON_TROVATO + id);
+                    return new ResourceNotFoundException(ErrorConstants.MAGAZZINO_NON_TROVATO + id);
+                }));
     }
 
     public MagazzinoResponse getByCodiceUbicazione(String codiceUbicazione) {
         if (codiceUbicazione == null || codiceUbicazione.trim().isEmpty()) {
-            throw new IllegalArgumentException("Il codice ubicazione non può essere vuoto");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, "getByCodiceUbicazione", ErrorConstants.MAGAZZINO_CODICE_OBBLIGATORIO);
+            throw new IllegalArgumentException(ErrorConstants.MAGAZZINO_CODICE_OBBLIGATORIO);
         }
         return toResponse(repo.findByCodiceUbicazione(codiceUbicazione.trim())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Ubicazione non trovata con codice " + codiceUbicazione)));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "getByCodiceUbicazione", "Ubicazione non trovata con codice: " + codiceUbicazione);
+                    return new ResourceNotFoundException("Ubicazione non trovata con codice: " + codiceUbicazione);
+                }));
     }
 
     public List<MagazzinoResponse> getAll() {
@@ -64,19 +72,20 @@ public class MagazzinoDigitaleService {
 
     @Transactional
     public MagazzinoResponse update(Long id, MagazzinoRequest dto) {
-        validateRequest(dto);
+        validateRequest(dto, "update");
 
         MagazzinoDigitale e = repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Ubicazione non trovata con ID " + id));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.MAGAZZINO_NON_TROVATO + id);
+                    return new ResourceNotFoundException(ErrorConstants.MAGAZZINO_NON_TROVATO + id);
+                });
 
-        // Se il codice cambia, deve essere libero
         if (!e.getCodiceUbicazione().equalsIgnoreCase(dto.codiceUbicazione().trim())) {
             repo.findByCodiceUbicazione(dto.codiceUbicazione().trim())
                     .ifPresent(other -> {
                         if (!other.getUbicazioneId().equals(id)) {
-                            throw new DataIntegrityViolationException(
-                                    "Codice ubicazione già usato da altro record: " + dto.codiceUbicazione());
+                            log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "update", ErrorConstants.MAGAZZINO_CODICE_DUPLICATO + dto.codiceUbicazione());
+                            throw new DataIntegrityViolationException(ErrorConstants.MAGAZZINO_CODICE_DUPLICATO + dto.codiceUbicazione());
                         }
                     });
         }
@@ -88,23 +97,32 @@ public class MagazzinoDigitaleService {
     @Transactional
     public void delete(Long id) {
         if (!repo.existsById(id)) {
-            throw new ResourceNotFoundException("Ubicazione non trovata con ID " + id);
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.MAGAZZINO_NON_TROVATO + id);
+            throw new ResourceNotFoundException(ErrorConstants.MAGAZZINO_NON_TROVATO + id);
         }
         repo.deleteById(id);
     }
 
-    private void validateRequest(MagazzinoRequest dto) {
+    private void validateRequest(MagazzinoRequest dto, String operation) {
         if (dto == null) {
-            throw new IllegalArgumentException("I dati dell'ubicazione non possono essere null");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.MAGAZZINO_DTO_NULL);
+            throw new IllegalArgumentException(ErrorConstants.MAGAZZINO_DTO_NULL);
         }
         if (dto.codiceUbicazione() == null || dto.codiceUbicazione().trim().isEmpty()) {
-            throw new IllegalArgumentException("Il codice ubicazione è obbligatorio");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.MAGAZZINO_CODICE_OBBLIGATORIO);
+            throw new IllegalArgumentException(ErrorConstants.MAGAZZINO_CODICE_OBBLIGATORIO);
+        }
+        if (dto.codiceUbicazione().trim().length() > 50) {
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.MAGAZZINO_CODICE_TOO_LONG);
+            throw new IllegalArgumentException(ErrorConstants.MAGAZZINO_CODICE_TOO_LONG);
         }
         if (dto.zona() == null || dto.zona().trim().isEmpty()) {
-            throw new IllegalArgumentException("La zona è obbligatoria");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.MAGAZZINO_ZONA_OBBLIGATORIA);
+            throw new IllegalArgumentException(ErrorConstants.MAGAZZINO_ZONA_OBBLIGATORIA);
         }
         if (dto.capacitaMax() != null && dto.capacitaMax() < 1) {
-            throw new IllegalArgumentException("La capacità massima deve essere almeno 1");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.MAGAZZINO_CAPACITA_INVALIDA);
+            throw new IllegalArgumentException(ErrorConstants.MAGAZZINO_CAPACITA_INVALIDA);
         }
     }
 

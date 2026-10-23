@@ -1,17 +1,20 @@
 package pilot.servizi.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pilot.servizi.dto.request.AttrezzaturaRequest;
 import pilot.servizi.dto.response.AttrezzaturaResponse;
 import pilot.servizi.entity.Attrezzature;
+import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.AttrezzatureRepository;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -21,14 +24,11 @@ public class AttrezzaturaService {
 
     @Transactional
     public AttrezzaturaResponse create(AttrezzaturaRequest dto) {
-        if (dto == null) {
-            throw new IllegalArgumentException("I dati dell'attrezzatura non possono essere null");
-        }
-        if (dto.matricola() == null || dto.matricola().trim().isEmpty()) {
-            throw new IllegalArgumentException("La matricola dell'attrezzatura è obbligatoria");
-        }
+        validateRequest(dto, "create");
+
         if (repo.existsByMatricola(dto.matricola().trim())) {
-            throw new DataIntegrityViolationException("Attrezzatura già esistente con matricola: " + dto.matricola());
+            log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "create", ErrorConstants.ATTREZZATURA_MATRICOLA_DUPLICATA + dto.matricola());
+            throw new DataIntegrityViolationException(ErrorConstants.ATTREZZATURA_MATRICOLA_DUPLICATA + dto.matricola());
         }
 
         Attrezzature e = new Attrezzature();
@@ -38,15 +38,22 @@ public class AttrezzaturaService {
 
     public AttrezzaturaResponse getById(Long id) {
         return toResponse(repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Attrezzatura non trovata con ID " + id)));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "getById", ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
+                    return new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
+                }));
     }
 
     public AttrezzaturaResponse getByMatricola(String matricola) {
         if (matricola == null || matricola.trim().isEmpty()) {
-            throw new IllegalArgumentException("La matricola per la ricerca non può essere vuota");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, "getByMatricola", ErrorConstants.ATTREZZATURA_MATRICOLA_OBBLIGATORIA);
+            throw new IllegalArgumentException(ErrorConstants.ATTREZZATURA_MATRICOLA_OBBLIGATORIA);
         }
         return toResponse(repo.findByMatricola(matricola.trim())
-                .orElseThrow(() -> new ResourceNotFoundException("Attrezzatura non trovata con matricola " + matricola)));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "getByMatricola", ErrorConstants.ATTREZZATURA_NON_TROVATA_MATRICOLA + matricola);
+                    return new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_NON_TROVATA_MATRICOLA + matricola);
+                }));
     }
 
     public List<AttrezzaturaResponse> getAll() {
@@ -67,20 +74,19 @@ public class AttrezzaturaService {
 
     @Transactional
     public AttrezzaturaResponse update(Long id, AttrezzaturaRequest dto) {
-        if (dto == null) {
-            throw new IllegalArgumentException("I dati dell'attrezzatura non possono essere null");
-        }
-        if (dto.matricola() == null || dto.matricola().trim().isEmpty()) {
-            throw new IllegalArgumentException("La matricola dell'attrezzatura è obbligatoria");
-        }
+        validateRequest(dto, "update");
 
         Attrezzature e = repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Attrezzatura non trovata con ID " + id));
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
+                    return new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
+                });
 
         if (!e.getMatricola().equalsIgnoreCase(dto.matricola().trim())) {
             repo.findByMatricola(dto.matricola().trim()).ifPresent(other -> {
                 if (!other.getId().equals(id)) {
-                    throw new DataIntegrityViolationException("Matricola già usata da altra attrezzatura");
+                    log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "update", ErrorConstants.ATTREZZATURA_MATRICOLA_DUPLICATA + dto.matricola());
+                    throw new DataIntegrityViolationException(ErrorConstants.ATTREZZATURA_MATRICOLA_DUPLICATA + dto.matricola());
                 }
             });
         }
@@ -92,9 +98,29 @@ public class AttrezzaturaService {
     @Transactional
     public void delete(Long id) {
         if (!repo.existsById(id)) {
-            throw new ResourceNotFoundException("Attrezzatura non trovata con ID " + id);
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
+            throw new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
         }
         repo.deleteById(id);
+    }
+
+    private void validateRequest(AttrezzaturaRequest dto, String operation) {
+        if (dto == null) {
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.ATTREZZATURA_DTO_NULL);
+            throw new IllegalArgumentException(ErrorConstants.ATTREZZATURA_DTO_NULL);
+        }
+        if (dto.matricola() == null || dto.matricola().trim().isEmpty()) {
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.ATTREZZATURA_MATRICOLA_OBBLIGATORIA);
+            throw new IllegalArgumentException(ErrorConstants.ATTREZZATURA_MATRICOLA_OBBLIGATORIA);
+        }
+        if (dto.matricola().trim().length() > 100) {
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.ATTREZZATURA_MATRICOLA_TOO_LONG);
+            throw new IllegalArgumentException(ErrorConstants.ATTREZZATURA_MATRICOLA_TOO_LONG);
+        }
+        if (dto.descrizione() != null && dto.descrizione().length() > 255) {
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.ATTREZZATURA_DESCRIZIONE_TOO_LONG);
+            throw new IllegalArgumentException(ErrorConstants.ATTREZZATURA_DESCRIZIONE_TOO_LONG);
+        }
     }
 
     private void apply(AttrezzaturaRequest dto, Attrezzature e) {
