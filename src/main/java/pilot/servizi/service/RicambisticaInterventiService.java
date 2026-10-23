@@ -1,6 +1,5 @@
 package pilot.servizi.service;
 
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,7 +12,6 @@ import pilot.servizi.repository.RicambisticaInterventiRepository;
 
 import java.util.List;
 
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -22,12 +20,10 @@ public class RicambisticaInterventiService {
     private final RicambisticaInterventiRepository repo;
     private final InterventiRepository interventiRepo;
 
-    // ------------------------------------------------------------
-    // CREATE
-    // ------------------------------------------------------------
     @Transactional
     public RicambioResponse create(RicambioRequest dto) {
-        // 1. L'intervento deve esistere
+        validateRequest(dto);
+
         if (!interventiRepo.existsById(dto.interventoId())) {
             throw new ResourceNotFoundException(
                     "Intervento non trovato con ID " + dto.interventoId());
@@ -38,9 +34,6 @@ public class RicambisticaInterventiService {
         return toResponse(repo.save(e));
     }
 
-    // ------------------------------------------------------------
-    // READ
-    // ------------------------------------------------------------
     public RicambioResponse getById(Long id) {
         return toResponse(repo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -69,16 +62,14 @@ public class RicambisticaInterventiService {
                 .toList();
     }
 
-    // ------------------------------------------------------------
-    // UPDATE
-    // ------------------------------------------------------------
     @Transactional
     public RicambioResponse update(Long id, RicambioRequest dto) {
+        validateRequest(dto);
+
         Ricambi e = repo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Ricambio non trovato con ID " + id));
 
-        // Se l'utente sta cambiando intervento, il nuovo deve esistere
         if (!e.getInterventoId().equals(dto.interventoId())
                 && !interventiRepo.existsById(dto.interventoId())) {
             throw new ResourceNotFoundException(
@@ -89,9 +80,6 @@ public class RicambisticaInterventiService {
         return toResponse(repo.save(e));
     }
 
-    // ------------------------------------------------------------
-    // DELETE
-    // ------------------------------------------------------------
     @Transactional
     public void delete(Long id) {
         if (!repo.existsById(id)) {
@@ -109,14 +97,6 @@ public class RicambisticaInterventiService {
         repo.deleteByInterventoId(interventoId);
     }
 
-    // ------------------------------------------------------------
-    // OPERAZIONI AGGREGATE / BATCH
-    // ------------------------------------------------------------
-
-    /**
-     * Sostituisce in blocco i ricambi di un intervento.
-     * Usato tipicamente dal SyncService o da una UI "modifica ricambi".
-     */
     @Transactional
     public List<RicambioResponse> replaceByIntervento(Long interventoId,
                                                       List<RicambioRequest> nuovi) {
@@ -126,9 +106,12 @@ public class RicambisticaInterventiService {
         }
         repo.deleteByInterventoId(interventoId);
 
+        if (nuovi == null || nuovi.isEmpty()) {
+            return List.of();
+        }
+
         return nuovi.stream()
                 .map(r -> {
-                    // Forza l'interventoId dal path (evita incongruenze client)
                     RicambioRequest fixed = new RicambioRequest(
                             interventoId,
                             r.articoloId(),
@@ -137,6 +120,7 @@ public class RicambisticaInterventiService {
                             r.quantitaUtilizzata(),
                             r.prezzoUnitario()
                     );
+                    validateRequest(fixed);
                     Ricambi e = new Ricambi();
                     apply(fixed, e);
                     return toResponse(repo.save(e));
@@ -144,12 +128,10 @@ public class RicambisticaInterventiService {
                 .toList();
     }
 
-    /** Totale pezzi usati per un articolo (su tutti gli interventi). */
     public Integer totalePezziUsati(Long articoloId) {
         return repo.sumQuantitaByArticoloId(articoloId);
     }
 
-    /** Totale costo ricambi di un intervento. */
     public Double totaleCostoRicambi(Long interventoId) {
         if (!interventiRepo.existsById(interventoId)) {
             throw new ResourceNotFoundException(
@@ -158,16 +140,31 @@ public class RicambisticaInterventiService {
         return repo.sumCostoByInterventoId(interventoId);
     }
 
-    // ------------------------------------------------------------
-    // MAPPER PRIVATI
-    // ------------------------------------------------------------
+    private void validateRequest(RicambioRequest dto) {
+        if (dto == null) {
+            throw new IllegalArgumentException("I dati del ricambio non possono essere null");
+        }
+        if (dto.interventoId() == null) {
+            throw new IllegalArgumentException("L'ID intervento è obbligatorio");
+        }
+        if (dto.articoloId() == null) {
+            throw new IllegalArgumentException("L'ID articolo è obbligatorio");
+        }
+        if (dto.quantitaUtilizzata() == null || dto.quantitaUtilizzata() < 1) {
+            throw new IllegalArgumentException("La quantità utilizzata deve essere almeno 1");
+        }
+        if (dto.prezzoUnitario() != null && dto.prezzoUnitario() < 0) {
+            throw new IllegalArgumentException("Il prezzo unitario non può essere negativo");
+        }
+    }
+
     private void apply(RicambioRequest dto, Ricambi e) {
         e.setInterventoId(dto.interventoId());
         e.setArticoloId(dto.articoloId());
         e.setCodiceRicambio(dto.codiceRicambio());
         e.setDescrizioneRicambio(dto.descrizioneRicambio());
         e.setQuantitaUtilizzata(dto.quantitaUtilizzata());
-        e.setPrezzoUnitario(dto.prezzoUnitario());
+        e.setPrezzoUnitario(dto.prezzoUnitario() != null ? dto.prezzoUnitario() : 0.0);
     }
 
     private RicambioResponse toResponse(Ricambi e) {

@@ -1,14 +1,15 @@
 package pilot.servizi.dto.response;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record StoriaNoleggioResponse(
-        Long docId,
+        Integer docId,
         String sezionale,
-        LocalDateTime dataDoc,
+        LocalDate dataDoc,
         Long clienteId,
         Long articoloId,
         String matricola,
-        Integer quantita,
+        Double quantita,
         LocalDateTime aggiornatoIl
 ) {}
