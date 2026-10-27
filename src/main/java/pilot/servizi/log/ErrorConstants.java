@@ -88,6 +88,19 @@ public final class ErrorConstants {
     public static final String NOLEGGIO_QUANTITA_NEGATIVA = "La quantità del noleggio non può essere negativa";
     public static final String NOLEGGIO_DUPLICATO = "Documento noleggio già esistente con ID ";
     public static final String NOLEGGIO_NON_TROVATO = "Documento noleggio non trovato con ID ";
+    public static final String NOLEGGIO_PAGINAZIONE_INVALIDA = "La pagina deve essere non negativa e la dimensione deve essere compresa tra 1 e 200";
+
+    // --- MANUTENZIONE NOLEGGI ---
+    public static final String MANUTENZIONE_DTO_NULL = "I dati della manutenzione non possono essere null";
+    public static final String MANUTENZIONE_CONFIGURAZIONE_INVALIDA = "La configurazione richiede soglia e numero di ordinarie positivi e almeno una categoria valida";
+    public static final String MANUTENZIONE_CONFIGURAZIONE_ASSENTE = "Configurazione manutenzione assente per il noleggio ";
+    public static final String MANUTENZIONE_NOLEGGIO_SENZA_CLIENTE = "Il noleggio non è associato a un cliente: ";
+    public static final String MANUTENZIONE_NON_DOVUTA = "Non è stata raggiunta la soglia di manutenzione per il noleggio ";
+    public static final String MANUTENZIONE_PIANIFICAZIONE_INVALIDA = "La pianificazione richiede giorni di avviso non negativi e periodi con date e intervallo validi";
+    public static final String MANUTENZIONE_PERIODI_SOVRAPPOSTI = "I periodi della pianificazione manutentiva non possono sovrapporsi";
+    public static final String MANUTENZIONE_PIANO_CLIENTE_NON_TROVATO = "Pianificazione manutenzione non trovata per il cliente ";
+    public static final String MANUTENZIONE_PIANO_NON_TROVATO = "Pianificazione manutenzione non trovata per il noleggio ";
+    public static final String STATISTICHE_INTERVALLO_INVALIDO = "Il cliente deve essere valido e la data iniziale non può essere successiva alla data finale";
 
     // --- STORIA PRODOTTI ---
     public static final String PRODOTTO_DTO_NULL = "I dati del prodotto storico non possono essere null";

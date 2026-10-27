@@ -2,11 +2,15 @@ package pilot.servizi.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pilot.servizi.dto.request.StoriaNoleggioRequest;
 import pilot.servizi.dto.response.StoriaNoleggioResponse;
+import pilot.servizi.dto.response.PageResponse;
 import pilot.servizi.entity.StoriaNoleggi;
 import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
@@ -20,6 +24,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class StoriaNoleggiService {
+
+    private static final int MAX_PAGE_SIZE = 200;
 
     private final StoriaNoleggiRepository repo;
     private final ClientiRepository clientiRepo;
@@ -65,6 +71,22 @@ public class StoriaNoleggiService {
 
     public List<StoriaNoleggioResponse> getByMatricola(String matricola) {
         return repo.findByMatricola(matricola).stream().map(this::toResponse).toList();
+    }
+
+    public PageResponse<StoriaNoleggioResponse> getPage(int page, int size) {
+        return toPageResponse(repo.findAll(pageRequest(page, size)));
+    }
+
+    public PageResponse<StoriaNoleggioResponse> getPageByCliente(Long clienteId, int page, int size) {
+        return toPageResponse(repo.findByClienteId(clienteId, pageRequest(page, size)));
+    }
+
+    public PageResponse<StoriaNoleggioResponse> getPageByArticolo(Long articoloId, int page, int size) {
+        return toPageResponse(repo.findByArticoloId(articoloId, pageRequest(page, size)));
+    }
+
+    public PageResponse<StoriaNoleggioResponse> getPageByMatricola(String matricola, int page, int size) {
+        return toPageResponse(repo.findByMatricola(matricola, pageRequest(page, size)));
     }
 
     @Transactional
@@ -135,5 +157,18 @@ public class StoriaNoleggiService {
                 e.getQuantita(),
                 e.getAggiornatoIl()
         );
+    }
+
+    private PageRequest pageRequest(int page, int size) {
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, "getPage",
+                    ErrorConstants.NOLEGGIO_PAGINAZIONE_INVALIDA);
+            throw new IllegalArgumentException(ErrorConstants.NOLEGGIO_PAGINAZIONE_INVALIDA);
+        }
+        return PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "docId"));
+    }
+
+    private PageResponse<StoriaNoleggioResponse> toPageResponse(Page<StoriaNoleggi> page) {
+        return PageResponse.of(page.map(this::toResponse));
     }
 }

@@ -20,7 +20,7 @@ Il servizio gestisce l'anagrafica clienti, parco macchine/attrezzature, interven
 
 ## 🗄️ Architettura Dati (MySQL)
 
-Il database `service` comprende 8 tabelle relazionali:
+Il database `service` comprende le tabelle relazionali elencate qui sotto:
 
 | Tabella | Entity JPA | Descrizione |
 |---|---|---|
@@ -32,6 +32,9 @@ Il database `service` comprende 8 tabelle relazionali:
 | `ricambistica_interventi` | [`Ricambi`](file:///C:/Users/alexf/Desktop/Servizi_Pilot/servizi_pilot_BE/src/main/java/pilot/servizi/entity/Ricambi.java) | Componenti e ricambi consumati durante un intervento |
 | `storia_noleggi` | [`StoriaNoleggi`](file:///C:/Users/alexf/Desktop/Servizi_Pilot/servizi_pilot_BE/src/main/java/pilot/servizi/entity/StoriaNoleggi.java) | Storico documenti di noleggio macchinari ai clienti |
 | `storia_prodotti` | [`StoriaProdotti`](file:///C:/Users/alexf/Desktop/Servizi_Pilot/servizi_pilot_BE/src/main/java/pilot/servizi/entity/StoriaProdotti.java) | Storico forniture e consumi merci clienti |
+| `noleggio_manutenzione_configurazioni` | `NoleggioManutenzioneConfigurazione` | Soglia e numero di manutenzioni ordinarie configurati per noleggio |
+| `noleggio_manutenzione_categorie` | `NoleggioManutenzioneConfigurazione.categoriaIds` | Categorie prodotto conteggiate per il noleggio |
+| `noleggio_manutenzioni` | `NoleggioManutenzione` | Storico manutenzioni e quantità acquistata al momento dell'intervento |
 
 ---
 
@@ -88,11 +91,60 @@ Tutti gli endpoint rispondono con payload JSON e restituiscono codici di stato H
 - `POST /api/storia/noleggi` - Registra documento noleggio
 - `GET /api/storia/noleggi/{docId}` - Dettaglio documento
 - `GET /api/storia/noleggi` - Lista documenti noleggio
+- `GET /api/storia/noleggi/pagina?page=0&size=50` - Lista paginata (dimensione massima 200; ordinamento per `docId` decrescente)
 - `GET /api/storia/noleggi/cliente/{clienteId}` - Documenti per cliente
+- `GET /api/storia/noleggi/cliente/{clienteId}/pagina?page=0&size=50` - Noleggi paginati per cliente
 - `GET /api/storia/noleggi/articolo/{articoloId}` - Noleggi per articolo
+- `GET /api/storia/noleggi/articolo/{articoloId}/pagina?page=0&size=50` - Noleggi paginati per articolo
 - `GET /api/storia/noleggi/matricola/{matricola}` - Noleggi per matricola
+- `GET /api/storia/noleggi/matricola/{matricola}/pagina?page=0&size=50` - Noleggi paginati per matricola
 - `PUT /api/storia/noleggi/{docId}` - Aggiorna noleggio
 - `DELETE /api/storia/noleggi/{docId}` - Cancella noleggio
+- `GET /api/storia/noleggi/{docId}/manutenzione` - Stato della manutenzione a calendario e stima degli acquisti del cliente
+- `PUT /api/storia/noleggi/{docId}/manutenzione/configurazione` - Seleziona le categorie prodotto da usare nelle stime cliente del noleggio (soglia e conteggio ordinario legacy sono facoltativi e non determinano più le scadenze)
+- `GET /api/storia/noleggi/{docId}/manutenzione/eventi` - Elenco manutenzioni registrate
+- `POST /api/storia/noleggi/{docId}/manutenzione/eventi` - Registra la manutenzione ordinaria quando dovuta
+- `POST /api/storia/noleggi/{docId}/manutenzione/eventi/straordinaria` - Registra un intervento straordinario per guasto o segnalazione
+
+La configurazione del calendario ordinario e dei giorni di preavviso è condivisa da tutte le attrezzature a noleggio di un cliente. Le singole scadenze e gli interventi restano associati al noleggio/macchina. Esempio:
+
+`PUT /api/clienti/{clienteId}/manutenzione/pianificazione`
+
+```json
+{
+  "giorniAvviso": 7,
+  "periodi": [
+    { "dataInizio": "2026-06-01", "dataFine": "2026-08-31", "intervalloGiorni": 30 },
+    { "dataInizio": "2026-09-01", "dataFine": "2027-05-31", "intervalloGiorni": 90 }
+  ]
+}
+```
+
+Ogni periodo ha date inclusive e non può sovrapporsi a un altro periodo del cliente. `giorniAvviso` indica con quanti giorni di anticipo lo stato diventa `IN_SCADENZA`; non è la frequenza della manutenzione. `intervalloGiorni` è invece la frequenza stagionale. La stessa pianificazione viene applicata a tutti i noleggi del cliente.
+
+Per ogni noleggio l'intervallo applicabile è quello del periodo che comprende la data dell'ultima manutenzione ordinaria di quella macchina; se non esistono interventi ordinari, si usa la data del documento di noleggio. Se tale data precede il primo periodo configurato, il primo intervallo viene calcolato dall'inizio di quel periodo. Se manca una data di riferimento o un periodo applicabile, lo stato è `NON_CONFIGURATA`. Le manutenzioni straordinarie non modificano la data di riferimento ordinaria. Gli acquisti non spostano la scadenza.
+
+La configurazione cliente è leggibile con `GET /api/clienti/{clienteId}/manutenzione/pianificazione`. Se non è stata ancora creata, l'endpoint risponde `404`; il client può proporre valori iniziali ma il calendario si attiva solo dopo il salvataggio.
+
+Esempio per associare i prodotti monitorati per una macchina:
+
+```json
+{
+  "categoriaIds": [4, 7]
+}
+```
+
+I campi `sogliaQuantita` e `ordinariePerStraordinaria` restano accettati per compatibilità con i client esistenti, ma non influiscono sulle scadenze. Le manutenzioni straordinarie si registrano per segnalazione e non modificano la data di scadenza ordinaria.
+
+### Statistiche cliente (`/api/statistiche/clienti/{clienteId}`)
+- `GET /api/statistiche/clienti/{clienteId}?dal=2026-01-01&al=2026-12-31` - Elenco noleggi, acquisti aggregati per prodotto/categoria e andamento mensile.
+
+Gli acquisti sono statistiche aggregate per cliente; non permettono di attribuire i consumi a una singola macchina. Le stime per noleggio selezionano le categorie impostate nella configurazione di quel noleggio ma riportano i totali acquistati dal cliente nel periodo, con ambito `TOTALE_CLIENTE_NON_ATTRIBUITO_A_SINGOLA_MACCHINA`. Se più macchine condividono una categoria, il valore stimato può comparire su più noleggi e non va sommato per ottenere un consumo macchina. Lo storico prodotti non contiene prezzi/importi di vendita, quindi l'API espone quantità e numero di righe, non fatturato.
+
+Le nuove tabelle non vengono create automaticamente: applicare una volta, in ordine, [20261026_manutenzione_noleggi.sql](./src/main/resources/db/manual/20261026_manutenzione_noleggi.sql), [20261027_indici_noleggi.sql](./src/main/resources/db/manual/20261027_indici_noleggi.sql), [20261028_manutenzione_stagionale.sql](./src/main/resources/db/manual/20261028_manutenzione_stagionale.sql) e [20261029_manutenzione_cliente.sql](./src/main/resources/db/manual/20261029_manutenzione_cliente.sql) al database MySQL prima di avviare il backend con `ddl-auto: validate`.
+
+La migrazione 20261029 crea la configurazione condivisa per cliente ma non copia automaticamente i vecchi calendari per noleggio: potrebbero contenere intervalli diversi per lo stesso cliente. Le vecchie tabelle vengono lasciate intatte; dopo la migrazione impostare una pianificazione nella scheda cliente. Gli eventi manutentivi esistenti, invece, restano associati ai rispettivi noleggi e continuano a fornire il riferimento della prossima scadenza.
+Per evitare di trasferire tutto lo storico, usare i nuovi endpoint `/pagina`; gli endpoint esistenti senza paginazione restano disponibili per compatibilità.
 
 ### 7. Storico Prodotti (`/api/storia/prodotti`)
 - `POST /api/storia/prodotti` - Registra riga storico prodotti
