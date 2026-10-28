@@ -134,4 +134,4 @@ Prima di completare qualsiasi modifica:
    ```powershell
    ./mvnw spring-boot:run
    ```
-   Verificare nei log che Tomcat parta su porta 8080 e che non vi siano `SchemaManagementException` sollevate da Hibernate Validator.
+   Verificare nei log che Tomcat parta su porta 8082 e che non vi siano `SchemaManagementException` sollevate da Hibernate Validator.

@@ -16,8 +16,6 @@ public record NoleggioManutenzioneResponse(
         Integer ordinariePerStraordinaria,
         List<Integer> categoriaIds,
         Double quantitaAcquistataTotale,
-        Double quantitaDopoUltimaManutenzione,
-        Double quantitaResidua,
         int manutenzioniOrdinarieDallUltimaStraordinaria,
         boolean manutenzioneDovuta,
         String tipoManutenzioneDovuta,

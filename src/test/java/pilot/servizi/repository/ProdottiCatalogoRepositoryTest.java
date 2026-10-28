@@ -24,6 +24,20 @@ class ProdottiCatalogoRepositoryTest {
         assertEquals(1, repository.findByCategoriaIdAndIsAttrezzaturaOrderByCodiceAsc(5, true).size());
     }
 
+    @Test
+    void searchSeparatesProductsEquipmentAndAccessories() {
+        repository.save(product(1L, "PROD-1", 5, false));
+        ProdottiCatalogo accessory = product(2L, "ACC-1", 5, false);
+        accessory.setIsAccessorio(true);
+        repository.save(accessory);
+        repository.save(product(3L, "ATT-1", 5, true));
+
+        assertEquals(3, repository.search(null, null, null).size());
+        assertEquals(1, repository.search(null, false, false).size());
+        assertEquals("ACC-1", repository.search(null, null, true).get(0).getCodice());
+        assertEquals(1, repository.search(5, true, null).size());
+    }
+
     private ProdottiCatalogo product(Long id, String code, Integer category, boolean equipment) {
         ProdottiCatalogo product = new ProdottiCatalogo();
         product.setArticoloId(id);

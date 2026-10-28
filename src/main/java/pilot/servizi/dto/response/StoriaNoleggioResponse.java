@@ -11,5 +11,8 @@ public record StoriaNoleggioResponse(
         Long articoloId,
         String matricola,
         Double quantita,
+        String codiceArticolo,
+        String descrizione,
+        String origine,
         LocalDateTime aggiornatoIl
 ) {}

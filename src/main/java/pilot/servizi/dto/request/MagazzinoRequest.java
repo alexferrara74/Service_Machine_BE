@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 public record MagazzinoRequest(
         @NotBlank(message = "Il codice ubicazione è obbligatorio") @Size(max = 50) String codiceUbicazione,
-        @NotBlank(message = "La zona è obbligatoria") @Size(max = 50) String zona,
+        @NotBlank(message = "La zona è obbligatoria") @Size(max = 100) String zona,
         @Size(max = 50) String scaffale,
         @Size(max = 50) String ripiano,
         @Min(value = 1, message = "La capacità massima deve essere almeno 1") Integer capacitaMax,

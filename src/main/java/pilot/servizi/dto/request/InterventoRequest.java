@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 public record InterventoRequest(
         @NotNull(message = "Il cliente è obbligatorio") Long clienteId,
-        @Size(max = 50) String matricolaAttrezzatura,
+        @Size(max = 100) String matricolaAttrezzatura,
         @NotBlank(message = "Il titolo è obbligatorio") @Size(max = 255) String titolo,
         @Size(max = 2000) String descrizioneProblema,
         @Size(max = 2000) String soluzioneApplicata,

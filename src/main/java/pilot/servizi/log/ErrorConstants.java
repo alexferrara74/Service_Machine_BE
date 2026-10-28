@@ -84,9 +84,14 @@ public final class ErrorConstants {
 
     // --- STORIA NOLEGGI ---
     public static final String NOLEGGIO_DTO_NULL = "I dati del documento noleggio non possono essere null";
-    public static final String NOLEGGIO_DOC_ID_OBBLIGATORIO = "L'ID documento (docId) è obbligatorio";
+    public static final String NOLEGGIO_CLIENTE_OBBLIGATORIO = "Il cliente del noleggio è obbligatorio";
+    public static final String NOLEGGIO_ARTICOLO_OBBLIGATORIO = "L'articolo del noleggio è obbligatorio";
+    public static final String NOLEGGIO_DATA_OBBLIGATORIA = "La data del noleggio è obbligatoria";
+    public static final String NOLEGGIO_MATRICOLA_OBBLIGATORIA = "La matricola del noleggio è obbligatoria e non può essere vuota";
+    public static final String NOLEGGIO_MATRICOLA_TOO_LONG = "La matricola supera i 100 caratteri";
+    public static final String NOLEGGIO_SEZIONALE_TOO_LONG = "Il sezionale supera i 50 caratteri";
+    public static final String NOLEGGIO_ARTICOLO_NON_TROVATO = "Articolo non trovato nel catalogo con ID ";
     public static final String NOLEGGIO_QUANTITA_NEGATIVA = "La quantità del noleggio non può essere negativa";
-    public static final String NOLEGGIO_DUPLICATO = "Documento noleggio già esistente con ID ";
     public static final String NOLEGGIO_NON_TROVATO = "Documento noleggio non trovato con ID ";
     public static final String NOLEGGIO_PAGINAZIONE_INVALIDA = "La pagina deve essere non negativa e la dimensione deve essere compresa tra 1 e 200";
 

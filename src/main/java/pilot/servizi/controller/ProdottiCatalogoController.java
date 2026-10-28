@@ -25,9 +25,10 @@ public class ProdottiCatalogoController {
     @Operation(summary = "Elenco prodotti di catalogo con filtri opzionali")
     public List<ProdottoCatalogoResponse> getAll(
             @RequestParam(required = false) Integer categoriaId,
-            @RequestParam(required = false) Boolean attrezzatura
+            @RequestParam(required = false) Boolean attrezzatura,
+            @RequestParam(required = false) Boolean accessorio
     ) {
-        return service.getAll(categoriaId, attrezzatura);
+        return service.getAll(categoriaId, attrezzatura, accessorio);
     }
 
     @GetMapping("/{articoloId}")

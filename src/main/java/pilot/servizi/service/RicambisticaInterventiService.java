@@ -10,6 +10,7 @@ import pilot.servizi.entity.Ricambi;
 import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.InterventiRepository;
+import pilot.servizi.repository.ProdottiCatalogoRepository;
 import pilot.servizi.repository.RicambisticaInterventiRepository;
 
 import java.util.List;
@@ -22,6 +23,7 @@ public class RicambisticaInterventiService {
 
     private final RicambisticaInterventiRepository repo;
     private final InterventiRepository interventiRepo;
+    private final ProdottiCatalogoRepository prodottiRepo;
 
     @Transactional
     public RicambioResponse create(RicambioRequest dto) {
@@ -174,6 +176,10 @@ public class RicambisticaInterventiService {
         e.setArticoloId(dto.articoloId());
         e.setCodiceRicambio(dto.codiceRicambio());
         e.setDescrizioneRicambio(dto.descrizioneRicambio());
+        prodottiRepo.findById(dto.articoloId()).ifPresent(p -> {
+            if (e.getCodiceRicambio() == null || e.getCodiceRicambio().isBlank()) e.setCodiceRicambio(p.getCodice());
+            if (e.getDescrizioneRicambio() == null || e.getDescrizioneRicambio().isBlank()) e.setDescrizioneRicambio(p.getDescrizione());
+        });
         e.setQuantitaUtilizzata(dto.quantitaUtilizzata());
         e.setPrezzoUnitario(dto.prezzoUnitario() != null ? dto.prezzoUnitario() : 0.0);
     }

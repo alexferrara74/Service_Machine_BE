@@ -82,7 +82,7 @@ public class AttrezzaturaService {
                     return new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
                 });
 
-        if (!e.getMatricola().equalsIgnoreCase(dto.matricola().trim())) {
+        if (!dto.matricola().trim().equalsIgnoreCase(e.getMatricola())) {
             repo.findByMatricola(dto.matricola().trim()).ifPresent(other -> {
                 if (!other.getId().equals(id)) {
                     log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "update", ErrorConstants.ATTREZZATURA_MATRICOLA_DUPLICATA + dto.matricola());

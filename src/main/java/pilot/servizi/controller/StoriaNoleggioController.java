@@ -22,7 +22,7 @@ public class StoriaNoleggioController {
     private final StoriaNoleggiService service;
 
     @PostMapping
-    @Operation(summary = "Registra nuovo documento di noleggio")
+    @Operation(summary = "Registra un nuovo noleggio inserito dall'operatore; docId è generato dal sistema")
     @ResponseStatus(HttpStatus.CREATED)
     public StoriaNoleggioResponse create(@Valid @RequestBody StoriaNoleggioRequest dto) {
         return service.create(dto);

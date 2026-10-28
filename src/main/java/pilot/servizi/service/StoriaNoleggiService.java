@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pilot.servizi.dto.request.StoriaNoleggioRequest;
@@ -14,7 +13,9 @@ import pilot.servizi.dto.response.PageResponse;
 import pilot.servizi.entity.StoriaNoleggi;
 import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
+import pilot.servizi.repository.AttrezzatureRepository;
 import pilot.servizi.repository.ClientiRepository;
+import pilot.servizi.repository.ProdottiCatalogoRepository;
 import pilot.servizi.repository.StoriaNoleggiRepository;
 
 import java.util.List;
@@ -29,20 +30,13 @@ public class StoriaNoleggiService {
 
     private final StoriaNoleggiRepository repo;
     private final ClientiRepository clientiRepo;
+    private final ProdottiCatalogoRepository prodottiRepo;
+    private final AttrezzatureRepository attrezzatureRepo;
 
     @Transactional
     public StoriaNoleggioResponse create(StoriaNoleggioRequest dto) {
         validateRequest(dto, "create");
-
-        if (repo.existsById(dto.docId())) {
-            log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "create", ErrorConstants.NOLEGGIO_DUPLICATO + dto.docId());
-            throw new DataIntegrityViolationException(ErrorConstants.NOLEGGIO_DUPLICATO + dto.docId());
-        }
-
-        if (dto.clienteId() != null && !clientiRepo.existsById(dto.clienteId())) {
-            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "create", ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
-            throw new ResourceNotFoundException(ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
-        }
+        validateReferences(dto, "create");
 
         StoriaNoleggi e = new StoriaNoleggi();
         apply(dto, e);
@@ -99,10 +93,7 @@ public class StoriaNoleggiService {
                     return new ResourceNotFoundException(ErrorConstants.NOLEGGIO_NON_TROVATO + docId);
                 });
 
-        if (dto.clienteId() != null && !clientiRepo.existsById(dto.clienteId())) {
-            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
-            throw new ResourceNotFoundException(ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
-        }
+        validateReferences(dto, "update");
 
         apply(dto, e);
         return toResponse(repo.save(e));
@@ -122,28 +113,63 @@ public class StoriaNoleggiService {
             log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.NOLEGGIO_DTO_NULL);
             throw new IllegalArgumentException(ErrorConstants.NOLEGGIO_DTO_NULL);
         }
-        if (dto.docId() == null) {
-            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.NOLEGGIO_DOC_ID_OBBLIGATORIO);
-            throw new IllegalArgumentException(ErrorConstants.NOLEGGIO_DOC_ID_OBBLIGATORIO);
+        if (dto.clienteId() == null) {
+            throw invalid(operation, ErrorConstants.NOLEGGIO_CLIENTE_OBBLIGATORIO);
+        }
+        if (dto.articoloId() == null) {
+            throw invalid(operation, ErrorConstants.NOLEGGIO_ARTICOLO_OBBLIGATORIO);
+        }
+        if (dto.dataDoc() == null) {
+            throw invalid(operation, ErrorConstants.NOLEGGIO_DATA_OBBLIGATORIA);
+        }
+        if (dto.matricola() == null || dto.matricola().trim().isEmpty()) {
+            throw invalid(operation, ErrorConstants.NOLEGGIO_MATRICOLA_OBBLIGATORIA);
+        }
+        if (dto.matricola().trim().length() > 100) {
+            throw invalid(operation, ErrorConstants.NOLEGGIO_MATRICOLA_TOO_LONG);
+        }
+        if (dto.sezionale() != null && dto.sezionale().length() > 50) {
+            throw invalid(operation, ErrorConstants.NOLEGGIO_SEZIONALE_TOO_LONG);
         }
         if (dto.quantita() != null && dto.quantita() < 0) {
-            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.NOLEGGIO_QUANTITA_NEGATIVA);
-            throw new IllegalArgumentException(ErrorConstants.NOLEGGIO_QUANTITA_NEGATIVA);
-        }
-        if (dto.matricola() != null && dto.matricola().length() > 100) {
-            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, "La matricola supera i 100 caratteri");
-            throw new IllegalArgumentException("La matricola supera i 100 caratteri");
+            throw invalid(operation, ErrorConstants.NOLEGGIO_QUANTITA_NEGATIVA);
         }
     }
 
+    private void validateReferences(StoriaNoleggioRequest dto, String operation) {
+        if (!clientiRepo.existsById(dto.clienteId())) {
+            throw notFound(operation, ErrorConstants.CLIENTE_NON_TROVATO + dto.clienteId());
+        }
+        if (!prodottiRepo.existsById(dto.articoloId())) {
+            throw notFound(operation, ErrorConstants.NOLEGGIO_ARTICOLO_NON_TROVATO + dto.articoloId());
+        }
+        String matricola = dto.matricola().trim();
+        if (!attrezzatureRepo.existsByMatricola(matricola)) {
+            throw notFound(operation, ErrorConstants.ATTREZZATURA_NON_TROVATA_MATRICOLA + matricola);
+        }
+    }
+
+    private IllegalArgumentException invalid(String operation, String message) {
+        log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, message);
+        return new IllegalArgumentException(message);
+    }
+
+    private ResourceNotFoundException notFound(String operation, String message) {
+        log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, operation, message);
+        return new ResourceNotFoundException(message);
+    }
+
     private void apply(StoriaNoleggioRequest dto, StoriaNoleggi e) {
-        e.setDocId(dto.docId());
         e.setSezionale(dto.sezionale());
         e.setDataDoc(dto.dataDoc());
         e.setClienteId(dto.clienteId());
         e.setArticoloId(dto.articoloId());
-        e.setMatricola(dto.matricola());
+        e.setMatricola(dto.matricola().trim());
         e.setQuantita(dto.quantita());
+        prodottiRepo.findById(dto.articoloId()).ifPresent(p -> {
+            e.setCodiceArticolo(p.getCodice());
+            e.setDescrizione(p.getDescrizione());
+        });
     }
 
     private StoriaNoleggioResponse toResponse(StoriaNoleggi e) {
@@ -155,6 +181,9 @@ public class StoriaNoleggiService {
                 e.getArticoloId(),
                 e.getMatricola(),
                 e.getQuantita(),
+                e.getCodiceArticolo(),
+                e.getDescrizione(),
+                e.getOrigine(),
                 e.getAggiornatoIl()
         );
     }

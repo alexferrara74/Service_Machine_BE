@@ -50,6 +50,9 @@ public class ProdottiCatalogo {
     @Column(name = "is_attrezzatura", nullable = false)
     private Boolean isAttrezzatura;
 
+    @Column(name = "is_accessorio", nullable = false)
+    private Boolean isAccessorio = false;
+
     @UpdateTimestamp
     @Column(name = "aggiornato_il")
     private LocalDateTime aggiornatoIl;

@@ -6,7 +6,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.generator.EventType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,6 +30,7 @@ import java.time.LocalDateTime;
 public class StoriaNoleggi {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "doc_id", nullable = false)
     private Integer docId;
 
@@ -48,6 +51,17 @@ public class StoriaNoleggi {
 
     @Column(name = "quantita")
     private Double quantita;
+
+    @Column(name = "codice_articolo", length = 50)
+    private String codiceArticolo;
+
+    @Column(name = "descrizione", length = 255)
+    private String descrizione;
+
+    /** ERP se la riga arriva dal sync, MANUALE se inserita dall'operatore (default del DB). */
+    @Generated(event = EventType.INSERT)
+    @Column(name = "origine", length = 10, insertable = false, updatable = false)
+    private String origine;
 
     @UpdateTimestamp
     @Column(name = "aggiornato_il")

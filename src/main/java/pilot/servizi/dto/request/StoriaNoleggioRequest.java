@@ -1,5 +1,6 @@
 package pilot.servizi.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
@@ -7,11 +8,11 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
 public record StoriaNoleggioRequest(
-        @NotNull(message = "L'ID documento è obbligatorio") Integer docId,
         @Size(max = 50) String sezionale,
-        LocalDate dataDoc,
-        Long clienteId,
-        Long articoloId,
+        @NotNull(message = "La data del noleggio è obbligatoria") LocalDate dataDoc,
+        @NotNull(message = "Il cliente è obbligatorio") Long clienteId,
+        @NotNull(message = "L'articolo è obbligatorio") Long articoloId,
+        @NotBlank(message = "La matricola è obbligatoria")
         @Size(max = 100) String matricola,
         @PositiveOrZero(message = "La quantità non può essere negativa") Double quantita
 ) {}

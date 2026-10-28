@@ -11,7 +11,7 @@ public record ClienteRequest(
         @NotBlank(message = "La ragione sociale è obbligatoria") @Size(max = 255) String ragioneSociale,
         @Size(max = 100) String nome,
         @Size(max = 100) String cognome,
-        @Size(max = 30) String telefono,
+        @Size(max = 50) String telefono,
         @Email(message = "Email non valida") @Size(max = 255) String email,
         @Size(max = 20) String partitaIva,
         @Size(max = 20) String codiceFiscale,

@@ -20,20 +20,18 @@ public class ProdottiCatalogoService {
 
     private final ProdottiCatalogoRepository repository;
 
-    public List<ProdottoCatalogoResponse> getAll(Integer categoriaId, Boolean attrezzatura) {
-        List<ProdottiCatalogo> products;
-        if (categoriaId != null && attrezzatura != null) {
-            products = repository.findByCategoriaIdAndIsAttrezzaturaOrderByCodiceAsc(categoriaId, attrezzatura);
-        } else if (categoriaId != null) {
-            products = repository.findByCategoriaIdOrderByCodiceAsc(categoriaId);
-        } else if (Boolean.TRUE.equals(attrezzatura)) {
-            products = repository.findByIsAttrezzaturaTrueOrderByCodiceAsc();
-        } else if (Boolean.FALSE.equals(attrezzatura)) {
-            products = repository.findByIsAttrezzaturaFalseOrderByCodiceAsc();
-        } else {
-            products = repository.findAllByOrderByCodiceAsc();
+    /**
+     * Con attrezzatura=false restituisce solo prodotti veri: gli accessori (is_accessorio)
+     * si ottengono esplicitamente con accessorio=true.
+     */
+    public List<ProdottoCatalogoResponse> getAll(Integer categoriaId, Boolean attrezzatura, Boolean accessorio) {
+        Boolean accessorioFilter = accessorio;
+        if (accessorioFilter == null && Boolean.FALSE.equals(attrezzatura)) {
+            accessorioFilter = false;
         }
-        return products.stream().map(this::toResponse).toList();
+        return repository.search(categoriaId, attrezzatura, accessorioFilter).stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     public ProdottoCatalogoResponse getById(Long articoloId) {
@@ -56,6 +54,7 @@ public class ProdottiCatalogoService {
                 product.getClasseCodice(),
                 product.getSottoclasseCodice(),
                 product.getIsAttrezzatura(),
+                product.getIsAccessorio(),
                 product.getAggiornatoIl()
         );
     }

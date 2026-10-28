@@ -70,6 +70,8 @@ L'endpoint del microservizio ERP non richiede token; anche la chiamata server-to
 - `GET /api/prodotti/catalogo` - Elenco catalogo
 - `GET /api/prodotti/catalogo?categoriaId=42` - Filtro per categoria
 - `GET /api/prodotti/catalogo?attrezzatura=true` - Solo attrezzature
+- `GET /api/prodotti/catalogo?attrezzatura=false` - Solo prodotti veri (esclude attrezzature e accessori)
+- `GET /api/prodotti/catalogo?accessorio=true` - Solo accessori
 - `GET /api/prodotti/catalogo/{articoloId}` - Dettaglio articolo
 
 Il catalogo è di sola lettura dal BE: il microservizio ERP continua a popolare le tabelle condivise. Le righe di `storia_prodotti` restano lo storico delle vendite e alimentano statistiche e prodotti acquistati dei clienti.
@@ -103,7 +105,7 @@ Il catalogo è di sola lettura dal BE: il microservizio ERP continua a popolare 
 - `DELETE /api/magazzino/posizioni/{id}` - Rimuovi articolo da ubicazione
 
 ### 6. Storico Noleggi (`/api/storia/noleggi`)
-- `POST /api/storia/noleggi` - Registra documento noleggio
+- `POST /api/storia/noleggi` - Registra un noleggio inserito dall'operatore. `docId` è generato dal sistema (non va inviato) e identifica anche il PDF allegato. Obbligatori: `clienteId`, `articoloId`, `dataDoc`, `matricola`; cliente, articolo (catalogo) e matricola (attrezzature) devono esistere
 - `GET /api/storia/noleggi/{docId}` - Dettaglio documento
 - `GET /api/storia/noleggi` - Lista documenti noleggio
 - `GET /api/storia/noleggi/pagina?page=0&size=50` - Lista paginata (dimensione massima 200; ordinamento per `docId` decrescente)
@@ -123,6 +125,8 @@ Il catalogo è di sola lettura dal BE: il microservizio ERP continua a popolare 
 - `GET /api/storia/noleggi/{docId}/manutenzione/eventi` - Elenco manutenzioni registrate
 - `POST /api/storia/noleggi/{docId}/manutenzione/eventi` - Registra la manutenzione ordinaria quando dovuta
 - `POST /api/storia/noleggi/{docId}/manutenzione/eventi/straordinaria` - Registra un intervento straordinario per guasto o segnalazione
+
+I noleggi non provengono dall'ERP: il microservizio di integrazione non li sincronizza, quindi sono gestiti interamente dall'operatore. Per rendere `doc_id` auto-incrementale applicare `src/main/resources/db/manual/20261103_noleggi_gestione_operatore.sql`.
 
 Il contratto PDF è unico per ogni noleggio: un nuovo caricamento sostituisce il precedente. I file vengono conservati in `storia_noleggi_documenti`; sono accettati PDF validi fino a 20 MB.
 
