@@ -3,10 +3,18 @@ server:
   servlet:
     context-path:
 
+integration:
+  sync:
+    url: ${SYNC_SERVICE_URL:http://localhost:3000/api/sincronizza}
 
 spring:
   application:
     name: gestionale-magazzino
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
 
   # --- DATASOURCE MySQL ---
   datasource:

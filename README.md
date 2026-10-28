@@ -31,7 +31,9 @@ Il database `service` comprende le tabelle relazionali elencate qui sotto:
 | `magazzino_posizioni_articoli` | [`MagazzinoPosizioniArticoli`](file:///C:/Users/alexf/Desktop/Servizi_Pilot/servizi_pilot_BE/src/main/java/pilot/servizi/entity/MagazzinoPosizioniArticoli.java) | Giacenze puntuali articoli per singola ubicazione |
 | `ricambistica_interventi` | [`Ricambi`](file:///C:/Users/alexf/Desktop/Servizi_Pilot/servizi_pilot_BE/src/main/java/pilot/servizi/entity/Ricambi.java) | Componenti e ricambi consumati durante un intervento |
 | `storia_noleggi` | [`StoriaNoleggi`](file:///C:/Users/alexf/Desktop/Servizi_Pilot/servizi_pilot_BE/src/main/java/pilot/servizi/entity/StoriaNoleggi.java) | Storico documenti di noleggio macchinari ai clienti |
+| `storia_noleggi_documenti` | `StoriaNoleggioDocumento` | Documento PDF associato al singolo noleggio |
 | `storia_prodotti` | [`StoriaProdotti`](file:///C:/Users/alexf/Desktop/Servizi_Pilot/servizi_pilot_BE/src/main/java/pilot/servizi/entity/StoriaProdotti.java) | Storico forniture e consumi merci clienti |
+| `local_prodotti` | `ProdottiCatalogo` | Catalogo ERP sincronizzato, incluse le attrezzature |
 | `noleggio_manutenzione_configurazioni` | `NoleggioManutenzioneConfigurazione` | Soglia e numero di manutenzioni ordinarie configurati per noleggio |
 | `noleggio_manutenzione_categorie` | `NoleggioManutenzioneConfigurazione.categoriaIds` | Categorie prodotto conteggiate per il noleggio |
 | `noleggio_manutenzioni` | `NoleggioManutenzione` | Storico manutenzioni e quantità acquistata al momento dell'intervento |
@@ -41,6 +43,11 @@ Il database `service` comprende le tabelle relazionali elencate qui sotto:
 ## 🌐 Endpoints REST API
 
 Tutti gli endpoint rispondono con payload JSON e restituiscono codici di stato HTTP standard (`200 OK`, `201 CREATED`, `204 NO_CONTENT`, `400 BAD_REQUEST`, `404 NOT_FOUND`, `409 CONFLICT`).
+
+### Sincronizzazione ERP
+- `POST /api/sync/erp` - Avvia la sincronizzazione tramite il microservizio ERP.
+
+L'endpoint del microservizio ERP non richiede token; anche la chiamata server-to-server del BE non ne inoltra uno. Configurare `SYNC_SERVICE_URL` se l’endpoint ERP non è raggiungibile all’indirizzo predefinito `http://localhost:3000/api/sincronizza`. Limitare l'esposizione del microservizio a localhost o a una rete interna fidata.
 
 ### 1. Clienti (`/api/clienti`)
 - `POST /api/clienti` - Crea cliente
@@ -58,6 +65,14 @@ Tutti gli endpoint rispondono con payload JSON e restituiscono codici di stato H
 - `GET /api/attrezzature/marca/{marca}` - Filtra per marca
 - `PUT /api/attrezzature/{id}` - Aggiorna dati attrezzatura
 - `DELETE /api/attrezzature/{id}` - Elimina attrezzatura
+
+### 2.1 Catalogo ERP (`/api/prodotti/catalogo`)
+- `GET /api/prodotti/catalogo` - Elenco catalogo
+- `GET /api/prodotti/catalogo?categoriaId=42` - Filtro per categoria
+- `GET /api/prodotti/catalogo?attrezzatura=true` - Solo attrezzature
+- `GET /api/prodotti/catalogo/{articoloId}` - Dettaglio articolo
+
+Il catalogo è di sola lettura dal BE: il microservizio ERP continua a popolare le tabelle condivise. Le righe di `storia_prodotti` restano lo storico delle vendite e alimentano statistiche e prodotti acquistati dei clienti.
 
 ### 3. Interventi Tecnici (`/api/interventi`)
 - `POST /api/interventi` - Apri nuovo intervento
@@ -100,11 +115,18 @@ Tutti gli endpoint rispondono con payload JSON e restituiscono codici di stato H
 - `GET /api/storia/noleggi/matricola/{matricola}/pagina?page=0&size=50` - Noleggi paginati per matricola
 - `PUT /api/storia/noleggi/{docId}` - Aggiorna noleggio
 - `DELETE /api/storia/noleggi/{docId}` - Cancella noleggio
+- `GET /api/storia/noleggi/{docId}/documento` - Metadati del documento allegato
+- `POST /api/storia/noleggi/{docId}/documento` - Carica o sostituisce il PDF (massimo 20 MB, campo multipart `file`)
+- `GET /api/storia/noleggi/{docId}/documento/download` - Scarica il PDF allegato
 - `GET /api/storia/noleggi/{docId}/manutenzione` - Stato della manutenzione a calendario e stima degli acquisti del cliente
 - `PUT /api/storia/noleggi/{docId}/manutenzione/configurazione` - Seleziona le categorie prodotto da usare nelle stime cliente del noleggio (soglia e conteggio ordinario legacy sono facoltativi e non determinano più le scadenze)
 - `GET /api/storia/noleggi/{docId}/manutenzione/eventi` - Elenco manutenzioni registrate
 - `POST /api/storia/noleggi/{docId}/manutenzione/eventi` - Registra la manutenzione ordinaria quando dovuta
 - `POST /api/storia/noleggi/{docId}/manutenzione/eventi/straordinaria` - Registra un intervento straordinario per guasto o segnalazione
+
+Il contratto PDF è unico per ogni noleggio: un nuovo caricamento sostituisce il precedente. I file vengono conservati in `storia_noleggi_documenti`; sono accettati PDF validi fino a 20 MB.
+
+Per il catalogo ERP applicare, se non già eseguita, la migrazione `migrations/001_catalogo_prodotti.sql` del microservizio di integrazione: crea `local_prodotti` e aggiunge le chiavi ERP necessarie allo storico fatture e alle attrezzature. Per gli allegati noleggio applicare manualmente `src/main/resources/db/manual/20261102_catalogo_documenti_noleggio.sql` al database `service`. Eseguire le migrazioni dopo un backup.
 
 La configurazione del calendario ordinario e dei giorni di preavviso è condivisa da tutte le attrezzature a noleggio di un cliente. Le singole scadenze e gli interventi restano associati al noleggio/macchina. Esempio:
 
