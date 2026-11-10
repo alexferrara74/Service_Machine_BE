@@ -38,6 +38,7 @@ public interface StoriaProdottiRepository extends JpaRepository<StoriaProdotti, 
     }
 
     List<StoriaProdotti> findByClienteId(Long clienteId);
+    boolean existsByClienteId(Long clienteId);
     List<StoriaProdotti> findByArticoloId(Long articoloId);
     List<StoriaProdotti> findByCodiceArticolo(String codiceArticolo);
     List<StoriaProdotti> findByCategoriaId(Integer categoriaId);

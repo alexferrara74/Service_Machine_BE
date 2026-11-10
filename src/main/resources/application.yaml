@@ -6,6 +6,8 @@ server:
 integration:
   sync:
     url: ${SYNC_SERVICE_URL:http://localhost:3000/api/sincronizza}
+    # Facoltativo: se valorizzato viene inviato come Bearer al microservizio ERP (che deve avere lo stesso SYNC_API_TOKEN).
+    token: ${SYNC_API_TOKEN:}
 
 spring:
   application:
@@ -18,16 +20,24 @@ spring:
 
   # --- DATASOURCE MySQL ---
   datasource:
-    url: jdbc:mysql://localhost:3306/service?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: root
+    # I valori predefiniti sono solo per lo sviluppo locale: in altri ambienti impostare DB_URL, DB_USERNAME, DB_PASSWORD.
+    url: ${DB_URL:jdbc:mysql://localhost:3306/service?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # --- FLYWAY ---
+  # Su un DB esistente (senza storico Flyway) fa il baseline alla V1 senza modificare nulla.
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: true
+    baseline-version: 1
 
   # --- JPA / HIBERNATE ---
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -59,6 +69,4 @@ springdoc:
 logging:
   level:
     root: INFO
-    pilot.servizi: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    pilot.servizi: INFO

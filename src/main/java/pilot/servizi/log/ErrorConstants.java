@@ -36,6 +36,7 @@ public final class ErrorConstants {
     public static final String CLIENTE_EMAIL_INVALID = "Il formato dell'email del cliente non è valido";
     public static final String CLIENTE_CODICE_DUPLICATO = "Codice cliente già esistente: ";
     public static final String CLIENTE_NON_TROVATO = "Cliente non trovato con ID ";
+    public static final String CLIENTE_ELIMINAZIONE_BLOCCATA = "Il cliente non può essere eliminato perché ha noleggi, interventi o storico acquisti associati: ";
 
     // --- ATTREZZATURE ---
     public static final String ATTREZZATURA_DTO_NULL = "I dati dell'attrezzatura non possono essere null";
@@ -44,6 +45,7 @@ public final class ErrorConstants {
     public static final String ATTREZZATURA_DESCRIZIONE_TOO_LONG = "La descrizione dell'attrezzatura supera i 255 caratteri";
     public static final String ATTREZZATURA_MATRICOLA_DUPLICATA = "Attrezzatura già esistente con matricola: ";
     public static final String ATTREZZATURA_NON_TROVATA_ID = "Attrezzatura non trovata con ID ";
+    public static final String ATTREZZATURA_ELIMINAZIONE_BLOCCATA = "L'attrezzatura non può essere eliminata perché è usata da noleggi o interventi: ";
     public static final String ATTREZZATURA_NON_TROVATA_MATRICOLA = "Attrezzatura non trovata con matricola: ";
 
     // --- INTERVENTI ---
@@ -97,10 +99,10 @@ public final class ErrorConstants {
 
     // --- MANUTENZIONE NOLEGGI ---
     public static final String MANUTENZIONE_DTO_NULL = "I dati della manutenzione non possono essere null";
-    public static final String MANUTENZIONE_CONFIGURAZIONE_INVALIDA = "La configurazione richiede soglia e numero di ordinarie positivi e almeno una categoria valida";
+    public static final String MANUTENZIONE_CONFIGURAZIONE_INVALIDA = "La configurazione richiede almeno una categoria valida; soglia e numero di ordinarie, se indicati, devono essere positivi";
     public static final String MANUTENZIONE_CONFIGURAZIONE_ASSENTE = "Configurazione manutenzione assente per il noleggio ";
     public static final String MANUTENZIONE_NOLEGGIO_SENZA_CLIENTE = "Il noleggio non è associato a un cliente: ";
-    public static final String MANUTENZIONE_NON_DOVUTA = "Non è stata raggiunta la soglia di manutenzione per il noleggio ";
+    public static final String MANUTENZIONE_NON_DOVUTA = "La manutenzione ordinaria non è ancora dovuta per il noleggio ";
     public static final String MANUTENZIONE_PIANIFICAZIONE_INVALIDA = "La pianificazione richiede giorni di avviso non negativi e periodi con date e intervallo validi";
     public static final String MANUTENZIONE_PERIODI_SOVRAPPOSTI = "I periodi della pianificazione manutentiva non possono sovrapporsi";
     public static final String MANUTENZIONE_PIANO_CLIENTE_NON_TROVATO = "Pianificazione manutenzione non trovata per il cliente ";

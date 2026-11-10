@@ -11,6 +11,9 @@ import pilot.servizi.entity.Clienti;
 import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.ClientiRepository;
+import pilot.servizi.repository.InterventiRepository;
+import pilot.servizi.repository.StoriaNoleggiRepository;
+import pilot.servizi.repository.StoriaProdottiRepository;
 
 import java.util.List;
 
@@ -21,6 +24,9 @@ import java.util.List;
 public class ClientiService {
 
     private final ClientiRepository repo;
+    private final StoriaNoleggiRepository noleggiRepo;
+    private final InterventiRepository interventiRepo;
+    private final StoriaProdottiRepository prodottiRepo;
 
     @Transactional
     public ClienteResponse create(ClienteRequest dto) {
@@ -74,6 +80,10 @@ public class ClientiService {
         if (!repo.existsById(id)) {
             log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.CLIENTE_NON_TROVATO + id);
             throw new ResourceNotFoundException(ErrorConstants.CLIENTE_NON_TROVATO + id);
+        }
+        if (noleggiRepo.existsByClienteId(id) || interventiRepo.existsByClienteId(id) || prodottiRepo.existsByClienteId(id)) {
+            log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "delete", ErrorConstants.CLIENTE_ELIMINAZIONE_BLOCCATA + id);
+            throw new DataIntegrityViolationException(ErrorConstants.CLIENTE_ELIMINAZIONE_BLOCCATA + id);
         }
         repo.deleteById(id);
     }

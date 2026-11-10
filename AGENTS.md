@@ -103,6 +103,8 @@ src/main/java/pilot/servizi/
       hibernate:
         ddl-auto: validate
   ```
+- Lo schema è versionato con **Flyway** (`src/main/resources/db/migration`, `V1__schema_iniziale.sql` è il baseline). Ogni cambio di schema richiede una nuova `V<n>__descrizione.sql`: mai modificare una migrazione già applicata e mai usare `ddl-auto: update/create`. Il database è condiviso con il microservizio di integrazione, quindi lo schema ha un solo proprietario: questo backend.
+- Le credenziali e gli URL non vanno scritti in `application.yaml`: si usano le variabili d'ambiente (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `SYNC_API_TOKEN`). I log SQL con parametri sono ammessi solo nel profilo `dev`.
 - **IMPORTANTE**: In modalità `validate`, Hibernate esegue un controllo rigoroso tra i tipi Java dell'entità e le colonne MySQL all'avvio dell'applicazione.
 - Se viene modificata un'entità, assicurarsi che:
   - Il nome della colonna coincida (`name = "..."`).
@@ -117,6 +119,9 @@ src/main/java/pilot/servizi/
 - Per consentire l'esecuzione dei test (`mvn test`) in ambienti CI o locali dove MySQL non è attivo:
   - Il file `src/test/resources/application.yaml` sovrascrive il datasource con **H2 in-memory** in modalità `create-drop`.
   - Non inserire credenziali o dipendenze hardcoded da MySQL nei file di test.
+  - Flyway è disattivato nel profilo di test (`spring.flyway.enabled: false`): le migrazioni sono per MySQL.
+- Ogni nuova regola di business o di errore HTTP richiede un test; i test di errore HTTP vanno in `controller/ErrorHandlingWebTest` (`@WebMvcTest`) e devono fallire senza la modifica.
+- Prima di cancellare un'entità referenziata per valore (es. cliente, attrezzatura via `matricola`) il service verifica le dipendenze e risponde `409`.
 
 ---
 

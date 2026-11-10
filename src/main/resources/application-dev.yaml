@@ -1,0 +1,11 @@
+# Profilo di sviluppo: log SQL completi (con i parametri). Non usarlo in produzione:
+# i parametri possono contenere dati dei clienti. Attivare con --spring.profiles.active=dev
+spring:
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    pilot.servizi: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

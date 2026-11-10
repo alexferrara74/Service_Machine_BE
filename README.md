@@ -50,6 +50,8 @@ Tutti gli endpoint rispondono con payload JSON e restituiscono codici di stato H
 L'endpoint del microservizio ERP non richiede token; anche la chiamata server-to-server del BE non ne inoltra uno. Configurare `SYNC_SERVICE_URL` se l’endpoint ERP non è raggiungibile all’indirizzo predefinito `http://localhost:3000/api/sincronizza`. Limitare l'esposizione del microservizio a localhost o a una rete interna fidata.
 
 ### 1. Clienti (`/api/clienti`)
+> `DELETE` risponde `409 CONFLICT` se il cliente ha noleggi, interventi o storico acquisti associati.
+
 - `POST /api/clienti` - Crea cliente
 - `GET /api/clienti/{id}` - Dettaglio per ID
 - `GET /api/clienti` - Lista completa clienti
@@ -57,6 +59,8 @@ L'endpoint del microservizio ERP non richiede token; anche la chiamata server-to
 - `DELETE /api/clienti/{id}` - Elimina cliente
 
 ### 2. Attrezzature (`/api/attrezzature`)
+> `DELETE` risponde `409 CONFLICT` se la matricola è usata da noleggi o interventi.
+
 - `POST /api/attrezzature` - Registra nuova attrezzatura
 - `GET /api/attrezzature/{id}` - Dettaglio per ID
 - `GET /api/attrezzature/matricola/{matricola}` - Ricerca per matricola
@@ -167,7 +171,7 @@ I campi `sogliaQuantita` e `ordinariePerStraordinaria` restano accettati per com
 
 Gli acquisti sono statistiche aggregate per cliente; non permettono di attribuire i consumi a una singola macchina. Le stime per noleggio selezionano le categorie impostate nella configurazione di quel noleggio ma riportano i totali acquistati dal cliente nel periodo, con ambito `TOTALE_CLIENTE_NON_ATTRIBUITO_A_SINGOLA_MACCHINA`. Se più macchine condividono una categoria, il valore stimato può comparire su più noleggi e non va sommato per ottenere un consumo macchina. Lo storico prodotti non contiene prezzi/importi di vendita, quindi l'API espone quantità e numero di righe, non fatturato.
 
-Le nuove tabelle non vengono create automaticamente: applicare una volta, in ordine, [20261026_manutenzione_noleggi.sql](./src/main/resources/db/manual/20261026_manutenzione_noleggi.sql), [20261027_indici_noleggi.sql](./src/main/resources/db/manual/20261027_indici_noleggi.sql), [20261028_manutenzione_stagionale.sql](./src/main/resources/db/manual/20261028_manutenzione_stagionale.sql) e [20261029_manutenzione_cliente.sql](./src/main/resources/db/manual/20261029_manutenzione_cliente.sql) al database MySQL prima di avviare il backend con `ddl-auto: validate`.
+> **Storico:** da quando c'è Flyway queste migrazioni sono incluse nella V1 e non vanno più applicate a mano. Le istruzioni seguenti valgono solo per chi ha un database parziale da riallineare. Applicare una volta, in ordine, [20261026_manutenzione_noleggi.sql](./src/main/resources/db/manual/20261026_manutenzione_noleggi.sql), [20261027_indici_noleggi.sql](./src/main/resources/db/manual/20261027_indici_noleggi.sql), [20261028_manutenzione_stagionale.sql](./src/main/resources/db/manual/20261028_manutenzione_stagionale.sql) e [20261029_manutenzione_cliente.sql](./src/main/resources/db/manual/20261029_manutenzione_cliente.sql) al database MySQL prima di avviare il backend con `ddl-auto: validate`.
 
 La migrazione 20261029 crea la configurazione condivisa per cliente ma non copia automaticamente i vecchi calendari per noleggio: potrebbero contenere intervalli diversi per lo stesso cliente. Le vecchie tabelle vengono lasciate intatte; dopo la migrazione impostare una pianificazione nella scheda cliente. Gli eventi manutentivi esistenti, invece, restano associati ai rispettivi noleggi e continuano a fornire il riferimento della prossima scadenza.
 Per evitare di trasferire tutto lo storico, usare i nuovi endpoint `/pagina`; gli endpoint esistenti senza paginazione restano disponibili per compatibilità.
@@ -222,21 +226,50 @@ Tutti i service applicano controlli preventivi a livello applicativo prima dell'
 ```bash
 ./mvnw spring-boot:run
 ```
-L'applicazione avvierà Tomcat sulla porta `8080`.  
-Hibernate verificherà l'aderenza delle entità JPA con lo schema MySQL tramite `ddl-auto: validate`.
+L'applicazione avvia Tomcat sulla porta `8082`.
+All'avvio Flyway applica le migrazioni (vedi sotto) e poi Hibernate verifica l'aderenza delle entità JPA con lo schema MySQL tramite `ddl-auto: validate`.
+
+### Configurazione (variabili d'ambiente)
+
+I valori predefiniti servono solo allo sviluppo locale; negli altri ambienti vanno sovrascritti.
+
+| Variabile | Predefinito | Uso |
+|---|---|---|
+| `DB_URL` | `jdbc:mysql://localhost:3306/service?...` | URL JDBC del database |
+| `DB_USERNAME` / `DB_PASSWORD` | `root` / `root` | Credenziali del database |
+| `SYNC_SERVICE_URL` | `http://localhost:3000/api/sincronizza` | Endpoint del microservizio di integrazione |
+| `SYNC_API_TOKEN` | vuoto | Se valorizzato è inviato come `Bearer` al microservizio (che deve avere lo stesso `SYNC_API_TOKEN`) |
+| `FLYWAY_ENABLED` | `true` | `false` per disattivare le migrazioni automatiche |
+
+Il log SQL con i parametri (che possono contenere dati dei clienti) è spento di default; per attivarlo in sviluppo: `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`.
+
+**Sicurezza:** il backend non ha autenticazione né autorizzazione. Va esposto solo su una rete interna fidata (o dietro un proxy che autentichi); l'introduzione di un login è una decisione di prodotto ancora da prendere.
+
+### Migrazioni database (Flyway)
+
+Lo schema è versionato in `src/main/resources/db/migration` (`V1__schema_iniziale.sql`, poi `V2__…`):
+
+- **Database vuoto:** Flyway crea l'intero schema.
+- **Database esistente** (senza storico Flyway): Flyway crea `flyway_schema_history` e fa il *baseline* alla V1 **senza eseguire né modificare nulla**. Prima di farlo accertarsi che il database sia già allo stato della V1; è la stessa condizione richiesta da `ddl-auto: validate`, che altrimenti impedirebbe l'avvio.
+- Ogni modifica futura dello schema (anche per l'integrazione) si aggiunge qui come nuova `V<n>__descrizione.sql`; non si modificano le migrazioni già applicate.
+- Gli script in `db/manual/` e in `Integrazione_sana_breakfast/migrations/` sono **storici**: la V1 li consolida. Non vanno più eseguiti su un database nuovo.
+- Flyway avvisa che MySQL 9.0 è più recente della sua versione testata: funziona (verificato su MySQL 9.0.1), ma conviene aggiornare Flyway quando disponibile una versione che lo supporti ufficialmente.
 
 ### Esecuzione della Suite di Test
 ```bash
 ./mvnw clean test
 ```
-I test utilizzano un database H2 in memoria isolato configurato in `src/test/resources/application.yaml`.
+I test utilizzano un database H2 in memoria isolato configurato in `src/test/resources/application.yaml` (Flyway è disattivato nel profilo di test: le migrazioni sono per MySQL). Coprono service (Mockito), repository (H2), proxy di sincronizzazione e il comportamento degli errori HTTP (`ErrorHandlingWebTest`).
+
+### Formato degli errori
+Tutti gli errori hanno il corpo `{timestamp, status, error, message, path}`: `400` validazione o parametri/JSON non validi, `404` risorsa o percorso inesistente, `405` metodo non supportato, `409` conflitto di unicità o di integrità (i messaggi dei vincoli del database non vengono esposti), `413` PDF oltre 20 MB, `502` microservizio di sincronizzazione non raggiungibile, `500` errore imprevisto (messaggio generico, dettaglio solo nei log).
 
 ### Documentazione Swagger UI
 Una volta avviata l'applicazione, aprire il browser su:
 ```
-http://localhost:8080/swagger-ui.html
+http://localhost:8082/swagger-ui.html
 ```
 Specifica OpenAPI in formato JSON:
 ```
-http://localhost:8080/v3/api-docs
+http://localhost:8082/v3/api-docs
 ```

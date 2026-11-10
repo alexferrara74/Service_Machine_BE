@@ -13,6 +13,8 @@ import java.util.List;
 public interface StoriaNoleggiRepository extends JpaRepository<StoriaNoleggi, Integer> {
 
     List<StoriaNoleggi> findByClienteId(Long clienteId);
+    boolean existsByClienteId(Long clienteId);
+    boolean existsByMatricola(String matricola);
     Page<StoriaNoleggi> findByClienteId(Long clienteId, Pageable pageable);
     List<StoriaNoleggi> findByArticoloId(Long articoloId);
     Page<StoriaNoleggi> findByArticoloId(Long articoloId, Pageable pageable);

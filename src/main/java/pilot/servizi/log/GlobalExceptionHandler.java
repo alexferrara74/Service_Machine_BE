@@ -5,6 +5,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.ServletRequestBindingException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -34,11 +43,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleConflict(DataIntegrityViolationException ex, HttpServletRequest request) {
         log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, request.getMethod() + " " + request.getRequestURI(), ex.getMessage());
+        // Le violazioni lanciate dai service non hanno causa e hanno un messaggio per l'utente;
+        // quelle del database (con causa) contengono SQL e nomi di vincoli e non vanno esposte.
+        String message = ex.getCause() == null
+                ? ex.getMessage()
+                : "L'operazione viola un vincolo di integrità dei dati";
         ErrorResponse body = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
                 ErrorConstants.ERR_CONFLICT,
-                ex.getMessage(),
+                message,
                 request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
@@ -98,6 +112,53 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now(),
                 status.value(),
                 status.getReasonPhrase(),
+                details,
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(status).body(body);
+    }
+
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, HttpMessageNotReadableException.class})
+    public ResponseEntity<ErrorResponse> handleMalformedRequest(Exception ex, HttpServletRequest request) {
+        String details = ex instanceof MethodArgumentTypeMismatchException mismatch
+                ? "Valore non valido per il parametro '" + mismatch.getName() + "'"
+                : "Corpo della richiesta non leggibile o in formato non valido";
+        log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, request.getMethod() + " " + request.getRequestURI(), details);
+        ErrorResponse body = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                ErrorConstants.ERR_VALIDATION,
+                details,
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    /** Eccezioni MVC con stato proprio (404 risorsa/route, 405, 415, parametro mancante...): non sono errori del server. */
+    @ExceptionHandler({
+            HttpRequestMethodNotSupportedException.class,
+            HttpMediaTypeNotSupportedException.class,
+            HttpMediaTypeNotAcceptableException.class,
+            MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class,
+            ServletRequestBindingException.class,
+            NoResourceFoundException.class
+    })
+    public ResponseEntity<ErrorResponse> handleFrameworkError(Exception exception, HttpServletRequest request) {
+        org.springframework.web.ErrorResponse ex = (org.springframework.web.ErrorResponse) exception;
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String details = switch (status) {
+            case NOT_FOUND -> "Risorsa non trovata";
+            case METHOD_NOT_ALLOWED -> "Metodo HTTP non supportato per questo percorso";
+            case UNSUPPORTED_MEDIA_TYPE -> "Formato del contenuto non supportato";
+            case NOT_ACCEPTABLE -> "Formato di risposta non disponibile";
+            default -> ex.getBody().getDetail() != null ? ex.getBody().getDetail() : status.getReasonPhrase();
+        };
+        log.warn(ErrorConstants.LOG_VALIDATION, status.name(), request.getMethod() + " " + request.getRequestURI(), details);
+        ErrorResponse body = new ErrorResponse(
+                LocalDateTime.now(),
+                status.value(),
+                status.name(),
                 details,
                 request.getRequestURI()
         );

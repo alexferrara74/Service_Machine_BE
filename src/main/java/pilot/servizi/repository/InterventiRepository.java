@@ -13,6 +13,8 @@ import java.util.List;
 public interface InterventiRepository extends JpaRepository<Interventi, Long> {
 
     List<Interventi> findByClienteId(Long clienteId);
+    boolean existsByClienteId(Long clienteId);
+    boolean existsByMatricolaAttrezzatura(String matricolaAttrezzatura);
     List<Interventi> findByStato(String stato);
     List<Interventi> findByStatoNot(String stato);
     List<Interventi> findByMatricolaAttrezzatura(String matricolaAttrezzatura);

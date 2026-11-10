@@ -11,6 +11,8 @@ import pilot.servizi.entity.Attrezzature;
 import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.AttrezzatureRepository;
+import pilot.servizi.repository.InterventiRepository;
+import pilot.servizi.repository.StoriaNoleggiRepository;
 
 import java.util.List;
 
@@ -21,6 +23,8 @@ import java.util.List;
 public class AttrezzaturaService {
 
     private final AttrezzatureRepository repo;
+    private final StoriaNoleggiRepository noleggiRepo;
+    private final InterventiRepository interventiRepo;
 
     @Transactional
     public AttrezzaturaResponse create(AttrezzaturaRequest dto) {
@@ -97,9 +101,15 @@ public class AttrezzaturaService {
 
     @Transactional
     public void delete(Long id) {
-        if (!repo.existsById(id)) {
-            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
-            throw new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
+        Attrezzature e = repo.findById(id)
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
+                    return new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
+                });
+        String matricola = e.getMatricola();
+        if (matricola != null && (noleggiRepo.existsByMatricola(matricola) || interventiRepo.existsByMatricolaAttrezzatura(matricola))) {
+            log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "delete", ErrorConstants.ATTREZZATURA_ELIMINAZIONE_BLOCCATA + matricola);
+            throw new DataIntegrityViolationException(ErrorConstants.ATTREZZATURA_ELIMINAZIONE_BLOCCATA + matricola);
         }
         repo.deleteById(id);
     }
