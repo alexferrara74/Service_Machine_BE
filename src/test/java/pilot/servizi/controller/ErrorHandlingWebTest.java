@@ -57,6 +57,14 @@ class ErrorHandlingWebTest {
     }
 
     @Test
+    void decimalOnAnIntegerFieldIsRejectedAndNamesTheField() throws Exception {
+        mvc.perform(post("/api/clienti").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"codice\":\"C1\",\"ragioneSociale\":\"Rossi\",\"tipoListino\":1.5}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Valore non valido per il campo 'tipoListino'"));
+    }
+
+    @Test
     void unknownRouteIsNotFoundInsteadOfServerError() throws Exception {
         mvc.perform(get("/api/non-esiste"))
                 .andExpect(status().isNotFound())

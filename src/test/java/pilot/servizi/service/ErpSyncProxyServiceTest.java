@@ -96,4 +96,32 @@ class ErpSyncProxyServiceTest {
 
         assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
     }
+
+    @Test
+    void refusesASecondSynchronizationWhileOneIsRunning() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ErpSyncProxyService service = service(builder, "");
+        server.expect(requestTo(URL)).andRespond(request -> {
+            ResponseStatusException error = assertThrows(ResponseStatusException.class, service::synchronize);
+            assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+            return withSuccess("{}", MediaType.APPLICATION_JSON).createResponse(request);
+        });
+
+        assertEquals(HttpStatus.OK, service.synchronize().getStatusCode());
+        server.verify();
+    }
+
+    @Test
+    void allowsANewSynchronizationAfterAFailure() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ErpSyncProxyService service = service(builder, "");
+        server.expect(requestTo(URL)).andRespond(withException(new IOException("Connection refused")));
+        server.expect(requestTo(URL)).andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        assertThrows(ResponseStatusException.class, service::synchronize);
+
+        assertEquals(HttpStatus.OK, service.synchronize().getStatusCode());
+    }
 }

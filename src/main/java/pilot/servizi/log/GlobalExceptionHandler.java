@@ -1,5 +1,7 @@
 package pilot.servizi.log;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -22,6 +24,8 @@ import org.springframework.web.server.ResponseStatusException;
 import pilot.servizi.dto.response.ErrorResponse;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 @RestControllerAdvice
@@ -122,7 +126,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMalformedRequest(Exception ex, HttpServletRequest request) {
         String details = ex instanceof MethodArgumentTypeMismatchException mismatch
                 ? "Valore non valido per il parametro '" + mismatch.getName() + "'"
-                : "Corpo della richiesta non leggibile o in formato non valido";
+                : invalidField(ex)
+                        .map(field -> "Valore non valido per il campo '" + field + "'")
+                        .orElse("Corpo della richiesta non leggibile o in formato non valido");
         log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, request.getMethod() + " " + request.getRequestURI(), details);
         ErrorResponse body = new ErrorResponse(
                 LocalDateTime.now(),
@@ -132,6 +138,16 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    private static Optional<String> invalidField(Exception ex) {
+        if (ex.getCause() instanceof MismatchedInputException mismatch) {
+            return mismatch.getPath().stream()
+                    .map(JsonMappingException.Reference::getFieldName)
+                    .filter(Objects::nonNull)
+                    .reduce((first, last) -> last);
+        }
+        return Optional.empty();
     }
 
     /** Eccezioni MVC con stato proprio (404 risorsa/route, 405, 415, parametro mancante...): non sono errori del server. */

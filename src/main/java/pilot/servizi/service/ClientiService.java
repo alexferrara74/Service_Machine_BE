@@ -126,12 +126,12 @@ public class ClientiService {
     private void apply(ClienteRequest dto, Clienti e) {
         e.setCodice(dto.codice() != null ? dto.codice().trim() : null);
         e.setRagioneSociale(dto.ragioneSociale() != null ? dto.ragioneSociale().trim() : null);
-        e.setNome(dto.nome());
-        e.setCognome(dto.cognome());
-        e.setTelefono(dto.telefono());
-        e.setEmail(dto.email());
-        e.setPartitaIva(dto.partitaIva());
-        e.setCodiceFiscale(dto.codiceFiscale());
+        e.setNome(Texts.clean(dto.nome()));
+        e.setCognome(Texts.clean(dto.cognome()));
+        e.setTelefono(Texts.clean(dto.telefono()));
+        e.setEmail(Texts.clean(dto.email()));
+        e.setPartitaIva(Texts.clean(dto.partitaIva()));
+        e.setCodiceFiscale(Texts.clean(dto.codiceFiscale()));
         e.setTipoListino(dto.tipoListino());
     }
 

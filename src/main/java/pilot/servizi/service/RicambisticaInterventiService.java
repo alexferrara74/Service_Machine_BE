@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pilot.servizi.dto.request.RicambioRequest;
 import pilot.servizi.dto.response.RicambioResponse;
+import pilot.servizi.entity.ProdottiCatalogo;
 import pilot.servizi.entity.Ricambi;
 import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
@@ -176,10 +177,13 @@ public class RicambisticaInterventiService {
         e.setArticoloId(dto.articoloId());
         e.setCodiceRicambio(dto.codiceRicambio());
         e.setDescrizioneRicambio(dto.descrizioneRicambio());
-        prodottiRepo.findById(dto.articoloId()).ifPresent(p -> {
-            if (e.getCodiceRicambio() == null || e.getCodiceRicambio().isBlank()) e.setCodiceRicambio(p.getCodice());
-            if (e.getDescrizioneRicambio() == null || e.getDescrizioneRicambio().isBlank()) e.setDescrizioneRicambio(p.getDescrizione());
-        });
+        ProdottiCatalogo p = prodottiRepo.findById(dto.articoloId())
+                .orElseThrow(() -> {
+                    log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "apply", ErrorConstants.ARTICOLO_NON_TROVATO + dto.articoloId());
+                    return new ResourceNotFoundException(ErrorConstants.ARTICOLO_NON_TROVATO + dto.articoloId());
+                });
+        if (e.getCodiceRicambio() == null || e.getCodiceRicambio().isBlank()) e.setCodiceRicambio(p.getCodice());
+        if (e.getDescrizioneRicambio() == null || e.getDescrizioneRicambio().isBlank()) e.setDescrizioneRicambio(p.getDescrizione());
         e.setQuantitaUtilizzata(dto.quantitaUtilizzata());
         e.setPrezzoUnitario(dto.prezzoUnitario() != null ? dto.prezzoUnitario() : 0.0);
     }

@@ -17,6 +17,7 @@ public interface MagazzinoPosizioniArticoliRepository extends JpaRepository<Maga
     List<MagazzinoPosizioniArticoli> findByArticoloId(Long articoloId);
     Optional<MagazzinoPosizioniArticoli> findByUbicazioneIdAndArticoloId(Long ubicazioneId, Long articoloId);
     boolean existsByUbicazioneIdAndArticoloId(Long ubicazioneId, Long articoloId);
+    boolean existsByUbicazioneId(Long ubicazioneId);
 
     // Somma totale della giacenza di un articolo su tutte le ubicazioni
     @Query("SELECT COALESCE(SUM(p.quantitaPresente), 0) FROM MagazzinoPosizioniArticoli p WHERE p.articoloId = :articoloId")

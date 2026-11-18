@@ -47,6 +47,8 @@ public final class ErrorConstants {
     public static final String ATTREZZATURA_NON_TROVATA_ID = "Attrezzatura non trovata con ID ";
     public static final String ATTREZZATURA_ELIMINAZIONE_BLOCCATA = "L'attrezzatura non può essere eliminata perché è usata da noleggi o interventi: ";
     public static final String ATTREZZATURA_NON_TROVATA_MATRICOLA = "Attrezzatura non trovata con matricola: ";
+    public static final String ATTREZZATURA_MATRICOLA_BLOCCATA = "La matricola non può essere modificata perché è usata da noleggi o interventi: ";
+    public static final String ATTREZZATURA_STATO_INVALIDO = "Lo stato dell'attrezzatura deve essere DISPONIBILE, IN_USO o IN_MANUTENZIONE";
 
     // --- INTERVENTI ---
     public static final String INTERVENTO_DTO_NULL = "I dati dell'intervento non possono essere null";
@@ -67,6 +69,8 @@ public final class ErrorConstants {
     public static final String MAGAZZINO_CAPACITA_INVALIDA = "La capacità massima dell'ubicazione deve essere almeno 1";
     public static final String MAGAZZINO_CODICE_DUPLICATO = "Codice ubicazione già utilizzato: ";
     public static final String MAGAZZINO_NON_TROVATO = "Ubicazione magazzino non trovata con ID ";
+    public static final String MAGAZZINO_ELIMINAZIONE_BLOCCATA = "L'ubicazione non può essere eliminata perché contiene giacenze di articoli: ";
+    public static final String ARTICOLO_NON_TROVATO = "Articolo non trovato nel catalogo con ID ";
 
     // --- MAGAZZINO POSIZIONI ARTICOLI ---
     public static final String POSIZIONE_DTO_NULL = "I dati della posizione articolo non possono essere null";

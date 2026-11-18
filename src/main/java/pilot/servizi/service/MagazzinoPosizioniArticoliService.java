@@ -13,6 +13,7 @@ import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.MagazzinoDigitaleRepository;
 import pilot.servizi.repository.MagazzinoPosizioniArticoliRepository;
+import pilot.servizi.repository.ProdottiCatalogoRepository;
 
 import java.util.List;
 
@@ -24,6 +25,7 @@ public class MagazzinoPosizioniArticoliService {
 
     private final MagazzinoPosizioniArticoliRepository repo;
     private final MagazzinoDigitaleRepository magazzinoRepo;
+    private final ProdottiCatalogoRepository catalogoRepo;
 
     @Transactional
     public PosizioneArticoloResponse create(PosizioneArticoloRequest dto) {
@@ -34,6 +36,7 @@ public class MagazzinoPosizioniArticoliService {
                     log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "create", ErrorConstants.MAGAZZINO_NON_TROVATO + dto.ubicazioneId());
                     return new ResourceNotFoundException(ErrorConstants.MAGAZZINO_NON_TROVATO + dto.ubicazioneId());
                 });
+        requireArticolo(dto.articoloId(), "create");
 
         if (repo.existsByUbicazioneIdAndArticoloId(dto.ubicazioneId(), dto.articoloId())) {
             String msg = ErrorConstants.POSIZIONE_DUPLICATA + "Articolo " + dto.articoloId() + " in Ubicazione " + dto.ubicazioneId();
@@ -96,6 +99,7 @@ public class MagazzinoPosizioniArticoliService {
                     log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "update", ErrorConstants.MAGAZZINO_NON_TROVATO + dto.ubicazioneId());
                     return new ResourceNotFoundException(ErrorConstants.MAGAZZINO_NON_TROVATO + dto.ubicazioneId());
                 });
+        requireArticolo(dto.articoloId(), "update");
 
         if (!e.getUbicazioneId().equals(dto.ubicazioneId()) || !e.getArticoloId().equals(dto.articoloId())) {
             repo.findByUbicazioneIdAndArticoloId(dto.ubicazioneId(), dto.articoloId()).ifPresent(other -> {
@@ -122,6 +126,13 @@ public class MagazzinoPosizioniArticoliService {
 
     public Integer giacenzaTotaleArticolo(Long articoloId) {
         return repo.sumQuantitaByArticoloId(articoloId);
+    }
+
+    private void requireArticolo(Long articoloId, String operation) {
+        if (!catalogoRepo.existsById(articoloId)) {
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, operation, ErrorConstants.ARTICOLO_NON_TROVATO + articoloId);
+            throw new ResourceNotFoundException(ErrorConstants.ARTICOLO_NON_TROVATO + articoloId);
+        }
     }
 
     private void validateRequest(PosizioneArticoloRequest dto, String operation) {

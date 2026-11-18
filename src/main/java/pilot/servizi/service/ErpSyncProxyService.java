@@ -10,11 +10,14 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 @Service
 @RequiredArgsConstructor
 public class ErpSyncProxyService {
 
     private final RestClient.Builder restClientBuilder;
+    private final AtomicBoolean running = new AtomicBoolean();
 
     @Value("${integration.sync.url}")
     private String syncUrl;
@@ -23,6 +26,10 @@ public class ErpSyncProxyService {
     private String syncToken;
 
     public ResponseEntity<byte[]> synchronize() {
+        // due sincronizzazioni insieme scriverebbero sulle stesse tabelle
+        if (!running.compareAndSet(false, true)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Sincronizzazione ERP già in corso");
+        }
         try {
             return restClientBuilder.build()
                     .post()
@@ -41,6 +48,8 @@ public class ErpSyncProxyService {
                             .body(response.getBody().readAllBytes()));
         } catch (ResourceAccessException e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Servizio di sincronizzazione ERP non raggiungibile");
+        } finally {
+            running.set(false);
         }
     }
 }

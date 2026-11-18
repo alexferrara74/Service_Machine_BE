@@ -11,6 +11,7 @@ import pilot.servizi.entity.MagazzinoDigitale;
 import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.MagazzinoDigitaleRepository;
+import pilot.servizi.repository.MagazzinoPosizioniArticoliRepository;
 
 import java.util.List;
 
@@ -21,6 +22,7 @@ import java.util.List;
 public class MagazzinoDigitaleService {
 
     private final MagazzinoDigitaleRepository repo;
+    private final MagazzinoPosizioniArticoliRepository posizioniRepo;
 
     @Transactional
     public MagazzinoResponse create(MagazzinoRequest dto) {
@@ -100,6 +102,11 @@ public class MagazzinoDigitaleService {
             log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.MAGAZZINO_NON_TROVATO + id);
             throw new ResourceNotFoundException(ErrorConstants.MAGAZZINO_NON_TROVATO + id);
         }
+        // nessuna FK sulle posizioni: senza questo controllo le giacenze resterebbero orfane
+        if (posizioniRepo.existsByUbicazioneId(id)) {
+            log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "delete", ErrorConstants.MAGAZZINO_ELIMINAZIONE_BLOCCATA + id);
+            throw new DataIntegrityViolationException(ErrorConstants.MAGAZZINO_ELIMINAZIONE_BLOCCATA + id);
+        }
         repo.deleteById(id);
     }
 
@@ -129,8 +136,8 @@ public class MagazzinoDigitaleService {
     private void apply(MagazzinoRequest dto, MagazzinoDigitale e) {
         e.setCodiceUbicazione(dto.codiceUbicazione().trim());
         e.setZona(dto.zona().trim());
-        e.setScaffale(dto.scaffale());
-        e.setRipiano(dto.ripiano());
+        e.setScaffale(Texts.clean(dto.scaffale()));
+        e.setRipiano(Texts.clean(dto.ripiano()));
         e.setCapacitaMax(dto.capacitaMax());
         e.setNote(dto.note());
     }

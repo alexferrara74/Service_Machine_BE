@@ -211,7 +211,15 @@ Tutti i service applicano controlli preventivi a livello applicativo prima dell'
    - Nelle posizioni magazzino, viene verificata l'esistenza dell'ubicazione e l'unicità della coppia `(ubicazione_id, articolo_id)`.
    - Nello storico noleggi e prodotti, se specificato il `clienteId`, viene validata la sua esistenza.
 
-3. **Coerenza Logica**:
+3. **Integrità oltre le FK (che in alcune tabelle non esistono)**:
+   - `AttrezzaturaService`: lo `stato` deve essere `DISPONIBILE`, `IN_USO` o `IN_MANUTENZIONE` (maiuscole/minuscole indifferenti, vuoto = `DISPONIBILE`); la matricola non si modifica se è usata da noleggi o interventi (`409`).
+   - `MagazzinoDigitaleService`: un'ubicazione con giacenze non si elimina (`409`).
+   - Ricambi e posizioni magazzino richiedono un `articoloId` presente nel catalogo (`404`), come i noleggi.
+   - I campi di testo opzionali vuoti o di soli spazi vengono salvati come `NULL`; gli altri sono ripuliti dagli spazi.
+   - Un decimale su un campo intero (es. quantità `2.5`) è rifiutato con `400` che indica il campo, non troncato.
+   - `POST /api/sync/erp`: una sola sincronizzazione alla volta, la seconda riceve `409`.
+
+4. **Coerenza Logica**:
    - Negli interventi, se fornita `dataChiusura`, viene verificato che non sia cronologicamente antecedente a `dataApertura`.
 
 ---
@@ -252,6 +260,7 @@ Lo schema è versionato in `src/main/resources/db/migration` (`V1__schema_inizia
 - **Database vuoto:** Flyway crea l'intero schema.
 - **Database esistente** (senza storico Flyway): Flyway crea `flyway_schema_history` e fa il *baseline* alla V1 **senza eseguire né modificare nulla**. Prima di farlo accertarsi che il database sia già allo stato della V1; è la stessa condizione richiesta da `ddl-auto: validate`, che altrimenti impedirebbe l'avvio.
 - Ogni modifica futura dello schema (anche per l'integrazione) si aggiunge qui come nuova `V<n>__descrizione.sql`; non si modificano le migrazioni già applicate.
+- `V2__stati_attrezzature.sql` normalizza gli stati salvati dal vecchio form FE ("Noleggiata", "In Manutenzione") nei valori documentati.
 - Gli script in `db/manual/` e in `Integrazione_sana_breakfast/migrations/` sono **storici**: la V1 li consolida. Non vanno più eseguiti su un database nuovo.
 - Flyway avvisa che MySQL 9.0 è più recente della sua versione testata: funziona (verificato su MySQL 9.0.1), ma conviene aggiornare Flyway quando disponibile una versione che lo supporti ufficialmente.
 

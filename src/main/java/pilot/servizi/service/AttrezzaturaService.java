@@ -15,12 +15,16 @@ import pilot.servizi.repository.InterventiRepository;
 import pilot.servizi.repository.StoriaNoleggiRepository;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AttrezzaturaService {
+
+    private static final Set<String> STATI = Set.of("DISPONIBILE", "IN_USO", "IN_MANUTENZIONE");
 
     private final AttrezzatureRepository repo;
     private final StoriaNoleggiRepository noleggiRepo;
@@ -93,6 +97,11 @@ public class AttrezzaturaService {
                     throw new DataIntegrityViolationException(ErrorConstants.ATTREZZATURA_MATRICOLA_DUPLICATA + dto.matricola());
                 }
             });
+            // noleggi e interventi puntano alla matricola per valore (nessuna FK sui noleggi): cambiarla li lascerebbe orfani
+            if (e.getMatricola() != null && isInUse(e.getMatricola())) {
+                log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "update", ErrorConstants.ATTREZZATURA_MATRICOLA_BLOCCATA + e.getMatricola());
+                throw new DataIntegrityViolationException(ErrorConstants.ATTREZZATURA_MATRICOLA_BLOCCATA + e.getMatricola());
+            }
         }
 
         apply(dto, e);
@@ -107,11 +116,15 @@ public class AttrezzaturaService {
                     return new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_NON_TROVATA_ID + id);
                 });
         String matricola = e.getMatricola();
-        if (matricola != null && (noleggiRepo.existsByMatricola(matricola) || interventiRepo.existsByMatricolaAttrezzatura(matricola))) {
+        if (matricola != null && isInUse(matricola)) {
             log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "delete", ErrorConstants.ATTREZZATURA_ELIMINAZIONE_BLOCCATA + matricola);
             throw new DataIntegrityViolationException(ErrorConstants.ATTREZZATURA_ELIMINAZIONE_BLOCCATA + matricola);
         }
         repo.deleteById(id);
+    }
+
+    private boolean isInUse(String matricola) {
+        return noleggiRepo.existsByMatricola(matricola) || interventiRepo.existsByMatricolaAttrezzatura(matricola);
     }
 
     private void validateRequest(AttrezzaturaRequest dto, String operation) {
@@ -131,14 +144,24 @@ public class AttrezzaturaService {
             log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.ATTREZZATURA_DESCRIZIONE_TOO_LONG);
             throw new IllegalArgumentException(ErrorConstants.ATTREZZATURA_DESCRIZIONE_TOO_LONG);
         }
+        if (!STATI.contains(statoOf(dto))) {
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.ATTREZZATURA_STATO_INVALIDO);
+            throw new IllegalArgumentException(ErrorConstants.ATTREZZATURA_STATO_INVALIDO);
+        }
+    }
+
+    // Stato mancante = DISPONIBILE; altrimenti uno dei valori documentati, senza distinguere maiuscole.
+    private static String statoOf(AttrezzaturaRequest dto) {
+        String stato = Texts.clean(dto.stato());
+        return stato == null ? "DISPONIBILE" : stato.toUpperCase(Locale.ROOT);
     }
 
     private void apply(AttrezzaturaRequest dto, Attrezzature e) {
         e.setMatricola(dto.matricola() != null ? dto.matricola().trim() : null);
-        e.setDescrizione(dto.descrizione());
-        e.setModello(dto.modello());
-        e.setMarca(dto.marca());
-        e.setStato(dto.stato() != null && !dto.stato().isBlank() ? dto.stato() : "DISPONIBILE");
+        e.setDescrizione(Texts.clean(dto.descrizione()));
+        e.setModello(Texts.clean(dto.modello()));
+        e.setMarca(Texts.clean(dto.marca()));
+        e.setStato(statoOf(dto));
     }
 
     private AttrezzaturaResponse toResponse(Attrezzature e) {
