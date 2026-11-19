@@ -27,8 +27,8 @@ import java.time.LocalDateTime;
 @Builder
 public class Clienti {
 
+    /** Per i clienti ERP è l'id dell'ERP; per quelli manuali lo assegna il service (vedi Origini): la colonna non è auto-increment. */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false, updatable = false)
     private Long id;
 
@@ -58,6 +58,10 @@ public class Clienti {
 
     @Column(name = "tipo_listino")
     private Integer tipoListino;
+
+    /** ERP se importato dal sync, MANUALE se creato dall'operatore. */
+    @Column(name = "origine", length = 10, updatable = false)
+    private String origine;
 
     @UpdateTimestamp
     @Column(name = "aggiornato_il")

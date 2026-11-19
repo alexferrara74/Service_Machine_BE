@@ -150,4 +150,14 @@ class AttrezzaturaServiceTest {
         verify(repo).save(saved.capture());
         assertEquals("DISPONIBILE", saved.getValue().getStato());
     }
+
+    @Test
+    void aNewAttrezzaturaIsMarkedAsManual() {
+        when(repo.existsByMatricola("M-9")).thenReturn(false);
+        when(repo.save(any())).thenAnswer(call -> call.getArgument(0));
+
+        var r = service.create(new pilot.servizi.dto.request.AttrezzaturaRequest("M-9", "Idropulitrice", null, null, "DISPONIBILE"));
+
+        assertEquals("MANUALE", r.origine());
+    }
 }

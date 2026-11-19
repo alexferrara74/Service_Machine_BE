@@ -40,6 +40,7 @@ public class AttrezzaturaService {
         }
 
         Attrezzature e = new Attrezzature();
+        e.setOrigine(Origini.MANUALE);
         apply(dto, e);
         return toResponse(repo.save(e));
     }
@@ -172,6 +173,7 @@ public class AttrezzaturaService {
                 e.getModello(),
                 e.getMarca(),
                 e.getStato(),
+                e.getOrigine(),
                 e.getAggiornatoIl()
         );
     }

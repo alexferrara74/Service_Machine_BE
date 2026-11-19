@@ -13,6 +13,9 @@ import java.util.Optional;
 @Repository
 public interface ClientiRepository extends JpaRepository<Clienti, Long> {
 
+    @Query("SELECT COALESCE(MAX(c.id), 0) FROM Clienti c")
+    Long maxId();
+
     Optional<Clienti> findByCodice(String codice);
     boolean existsByCodice(String codice);
 

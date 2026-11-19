@@ -53,6 +53,10 @@ public class ProdottiCatalogo {
     @Column(name = "is_accessorio", nullable = false)
     private Boolean isAccessorio = false;
 
+    /** ERP se importato dal sync, MANUALE se creato dall'operatore. */
+    @Column(name = "origine", length = 10, updatable = false)
+    private String origine;
+
     @UpdateTimestamp
     @Column(name = "aggiornato_il")
     private LocalDateTime aggiornatoIl;

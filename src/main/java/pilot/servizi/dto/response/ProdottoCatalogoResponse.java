@@ -12,5 +12,6 @@ public record ProdottoCatalogoResponse(
         String sottoclasseCodice,
         Boolean isAttrezzatura,
         Boolean isAccessorio,
+        String origine,
         LocalDateTime aggiornatoIl
 ) {}

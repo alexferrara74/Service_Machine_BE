@@ -38,6 +38,8 @@ public class ClientiService {
         }
 
         Clienti e = new Clienti();
+        e.setId(Origini.prossimoIdManuale(repo.maxId()));
+        e.setOrigine(Origini.MANUALE);
         apply(dto, e);
         return toResponse(repo.save(e));
     }
@@ -147,6 +149,7 @@ public class ClientiService {
                 e.getPartitaIva(),
                 e.getCodiceFiscale(),
                 e.getTipoListino(),
+                e.getOrigine(),
                 e.getAggiornatoIl()
         );
     }

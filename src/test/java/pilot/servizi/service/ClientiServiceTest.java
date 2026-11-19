@@ -95,4 +95,30 @@ class ClientiServiceTest {
         assertNull(saved.getValue().getEmail());
         assertNull(saved.getValue().getPartitaIva());
     }
+
+    @Test
+    void aManualClienteGetsAnIdInTheManualRangeAndTheManualOrigin() {
+        when(repo.maxId()).thenReturn(4321L);
+        when(repo.save(any())).thenAnswer(call -> call.getArgument(0));
+
+        service.create(new ClienteRequest("C9", "Nuovo Srl", null, null, null, null, null, null, null));
+
+        ArgumentCaptor<Clienti> saved = ArgumentCaptor.forClass(Clienti.class);
+        verify(repo).save(saved.capture());
+        // Sotto il miliardo ci sono gli id dell'ERP: i manuali partono da lì per non collidere.
+        assertEquals(1_000_000_000L, saved.getValue().getId());
+        assertEquals("MANUALE", saved.getValue().getOrigine());
+    }
+
+    @Test
+    void manualClientiKeepIncreasingAboveTheHighestExistingId() {
+        when(repo.maxId()).thenReturn(1_000_000_007L);
+        when(repo.save(any())).thenAnswer(call -> call.getArgument(0));
+
+        service.create(new ClienteRequest("C10", "Altro Srl", null, null, null, null, null, null, null));
+
+        ArgumentCaptor<Clienti> saved = ArgumentCaptor.forClass(Clienti.class);
+        verify(repo).save(saved.capture());
+        assertEquals(1_000_000_008L, saved.getValue().getId());
+    }
 }

@@ -24,6 +24,11 @@ public interface ProdottiCatalogoRepository extends JpaRepository<ProdottiCatalo
             @Param("accessorio") Boolean accessorio
     );
 
+    @Query("SELECT COALESCE(MAX(p.articoloId), 0) FROM ProdottiCatalogo p")
+    Long maxArticoloId();
+
+    boolean existsByCodiceIgnoreCase(String codice);
+
     List<ProdottiCatalogo> findAllByOrderByCodiceAsc();
     List<ProdottiCatalogo> findByIsAttrezzaturaTrueOrderByCodiceAsc();
     List<ProdottiCatalogo> findByIsAttrezzaturaFalseOrderByCodiceAsc();

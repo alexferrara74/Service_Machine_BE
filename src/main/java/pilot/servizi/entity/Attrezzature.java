@@ -48,6 +48,10 @@ public class Attrezzature {
     @Column(name = "stato", length = 50)
     private String stato;
 
+    /** ERP se importata dal sync, MANUALE se creata dall'operatore. */
+    @Column(name = "origine", length = 10, updatable = false)
+    private String origine;
+
     @UpdateTimestamp
     @Column(name = "aggiornato_il")
     private LocalDateTime aggiornatoIl;

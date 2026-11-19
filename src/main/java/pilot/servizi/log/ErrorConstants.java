@@ -129,4 +129,12 @@ public final class ErrorConstants {
     public static final String APPUNTAMENTO_CAMPO_TOO_LONG = "Un campo dell'appuntamento supera la lunghezza massima consentita: ";
     public static final String APPUNTAMENTO_NON_TROVATO = "Appuntamento non trovato con ID ";
     public static final String APPUNTAMENTO_INTERVALLO_INVALIDO = "L'intervallo del calendario richiede una data iniziale precedente a quella finale";
+
+    // --- CATALOGO PRODOTTI (articoli manuali) ---
+    public static final String CATALOGO_DTO_NULL = "I dati dell'articolo non possono essere null";
+    public static final String CATALOGO_CODICE_OBBLIGATORIO = "Il codice articolo è obbligatorio e non può essere vuoto";
+    public static final String CATALOGO_CODICE_TOO_LONG = "Il codice articolo supera la lunghezza massima di 50 caratteri";
+    public static final String CATALOGO_DESCRIZIONE_OBBLIGATORIA = "La descrizione dell'articolo è obbligatoria e non può essere vuota";
+    public static final String CATALOGO_DESCRIZIONE_TOO_LONG = "La descrizione dell'articolo supera la lunghezza massima di 255 caratteri";
+    public static final String CATALOGO_CODICE_DUPLICATO = "Articolo già presente nel catalogo con codice: ";
 }

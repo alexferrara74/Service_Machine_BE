@@ -13,5 +13,6 @@ public record ClienteResponse(
         String partitaIva,
         String codiceFiscale,
         Integer tipoListino,
+        String origine,
         LocalDateTime aggiornatoIl
 ) {}

@@ -9,5 +9,6 @@ public record AttrezzaturaResponse(
         String modello,
         String marca,
         String stato,
+        String origine,
         LocalDateTime aggiornatoIl
 ) {}
