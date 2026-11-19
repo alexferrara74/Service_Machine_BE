@@ -60,6 +60,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.HEAD, "/api/**").hasAnyRole(Ruolo.ADMIN.name(), Ruolo.VIEWER.name())
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
                         .requestMatchers("/api/**").hasRole(Ruolo.ADMIN.name())
+                        .requestMatchers(HttpMethod.GET, "/**").permitAll() // file del frontend (WEB_DIR): non contengono dati, le API sono tutte sotto /api
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(o -> o
                         .jwt(j -> j.jwtAuthenticationConverter(converter))

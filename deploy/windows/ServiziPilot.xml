@@ -1,0 +1,50 @@
+<!--
+  Configurazione del servizio Windows "Servizi Pilot" (wrapper WinSW).
+  Va nella stessa cartella di ServiziPilot.exe (= WinSW-x64.exe rinominato) e con lo stesso nome base.
+  PRIMA DI INSTALLARE sostituisci tutti i valori "CAMBIAMI..." (vedi INSTALLAZIONE.md, passo 5).
+  Il file contiene password: lascia l'accesso solo agli amministratori (comando nel passo 6).
+  Nei valori XML la "&" si scrive "&amp;".
+-->
+<service>
+  <id>ServiziPilot</id>
+  <name>Servizi Pilot</name>
+  <description>Gestionale Servizi Pilot: API e sito web sulla porta indicata.</description>
+
+  <!-- Java 21: se non e' nel PATH metti il percorso completo, es. C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot\bin\java.exe -->
+  <executable>java</executable>
+  <arguments>-Xmx512m -Dfile.encoding=UTF-8 -jar "C:\ServiziPilot\app\ServiziPilot.jar"</arguments>
+  <workingdirectory>C:\ServiziPilot\app</workingdirectory>
+
+  <!-- Porta a cui si collegano i client: http://NOME-SERVER:8082 -->
+  <env name="SERVER_PORT" value="8082"/>
+  <!-- Cartella del sito (frontend compilato) -->
+  <env name="WEB_DIR" value="C:\ServiziPilot\web"/>
+
+  <!-- Database MySQL (creato al passo 3) -->
+  <env name="DB_URL" value="jdbc:mysql://localhost:3306/service?useSSL=false&amp;serverTimezone=UTC&amp;allowPublicKeyRetrieval=true"/>
+  <env name="DB_USERNAME" value="servizi"/>
+  <env name="DB_PASSWORD" value="CAMBIAMI-password-database"/>
+
+  <!-- Accesso: JWT_SECRET almeno 32 caratteri casuali; l'admin viene creato solo al primo avvio (password almeno 10 caratteri) -->
+  <env name="JWT_SECRET" value="CAMBIAMI"/>
+  <env name="ADMIN_USERNAME" value="admin"/>
+  <env name="ADMIN_PASSWORD" value="CAMBIAMI"/>
+
+  <!-- Modulo di integrazione ERP (facoltativo, finche' non esiste lascia cosi') -->
+  <!-- <env name="SYNC_SERVICE_URL" value="http://localhost:3000/api/sincronizza"/> -->
+  <!-- <env name="SYNC_API_TOKEN" value=""/> -->
+
+  <!-- Parte da sola all'avvio del server e si riavvia se si ferma (es. MySQL non ancora pronto) -->
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <!-- Se vuoi che parta dopo MySQL, scrivi il nome del suo servizio (vedi services.msc): <depend>MySQL90</depend> -->
+
+  <logpath>C:\ServiziPilot\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>10</keepFiles>
+  </log>
+</service>

@@ -3,6 +3,10 @@ server:
   servlet:
     context-path:
 
+app:
+  # Cartella del frontend compilato (es. C:\ServiziPilot\web). Vuoto = il BE serve solo le API.
+  web-dir: ${WEB_DIR:}
+
 integration:
   sync:
     url: ${SYNC_SERVICE_URL:http://localhost:3000/api/sincronizza}

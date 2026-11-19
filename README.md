@@ -251,6 +251,10 @@ I valori predefiniti servono solo allo sviluppo locale; negli altri ambienti van
 | `JWT_SECRET` | **nessuno (obbligatoria)** | Segreto per firmare i token: almeno 32 caratteri casuali |
 | `JWT_TTL_MINUTES` | `480` | Durata del token in minuti |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / generata | Primo amministratore, creato solo se non esistono utenti |
+| `SERVER_PORT` | `8082` | Porta su cui ascolta il servizio |
+| `WEB_DIR` | vuoto | Cartella del frontend compilato (`dist/.../browser`): se valorizzata il BE serve anche il sito dalla stessa porta. Vuoto in sviluppo (`ng serve`) |
+
+**Installazione su Windows Server** (servizio Windows, MySQL, backup, aggiornamenti): [`deploy/windows/INSTALLAZIONE.md`](deploy/windows/INSTALLAZIONE.md).
 
 Il log SQL con i parametri (che possono contenere dati dei clienti) è spento di default; per attivarlo in sviluppo: `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`.
 
