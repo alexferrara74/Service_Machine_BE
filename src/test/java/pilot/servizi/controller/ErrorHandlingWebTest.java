@@ -2,7 +2,13 @@ package pilot.servizi.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.TestPropertySource;
+import pilot.servizi.repository.UtenteRepository;
+import pilot.servizi.security.JwtService;
+import pilot.servizi.security.UtenteJwtConverter;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -24,11 +30,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Verifica che GlobalExceptionHandler traduca gli errori del client in 4xx e non in 500. */
+@Import({JwtService.class, UtenteJwtConverter.class}) // SecurityConfig viene caricata comunque: ha bisogno di questi bean
+@TestPropertySource(properties = "security.jwt.secret=test-secret-test-secret-test-secret-0123456789")
+@AutoConfigureMockMvc(addFilters = false) // qui si prova la traduzione degli errori; le regole di accesso sono in SecurityWebTest
 @WebMvcTest({ClienteController.class, ClienteStatisticheController.class, AppuntamentoController.class})
 class ErrorHandlingWebTest {
 
     @Autowired
     private MockMvc mvc;
+
+    @MockitoBean
+    private UtenteRepository utenteRepository;
 
     @MockitoBean
     private ClientiService clientiService;

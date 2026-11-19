@@ -137,4 +137,19 @@ public final class ErrorConstants {
     public static final String CATALOGO_DESCRIZIONE_OBBLIGATORIA = "La descrizione dell'articolo è obbligatoria e non può essere vuota";
     public static final String CATALOGO_DESCRIZIONE_TOO_LONG = "La descrizione dell'articolo supera la lunghezza massima di 255 caratteri";
     public static final String CATALOGO_CODICE_DUPLICATO = "Articolo già presente nel catalogo con codice: ";
+
+    // --- UTENTI E AUTENTICAZIONE ---
+    public static final String AUTH_CREDENZIALI_NON_VALIDE = "Credenziali non valide";
+    public static final String AUTH_NON_AUTENTICATO = "Autenticazione richiesta: effettua il login";
+    public static final String AUTH_NON_AUTORIZZATO = "Non hai i permessi per eseguire questa operazione";
+    public static final String AUTH_TROPPI_TENTATIVI = "Troppi tentativi di accesso falliti: riprova tra qualche minuto";
+    public static final String UTENTE_DTO_NULL = "I dati dell'utente non possono essere null";
+    public static final String UTENTE_USERNAME_NON_VALIDO = "Lo username deve avere da 3 a 50 caratteri tra lettere, numeri, punto, trattino e underscore";
+    public static final String UTENTE_USERNAME_DUPLICATO = "Esiste già un utente con username: ";
+    public static final String UTENTE_RUOLO_OBBLIGATORIO = "Il ruolo dell'utente è obbligatorio";
+    public static final String UTENTE_PASSWORD_DEBOLE = "La password deve avere almeno 10 caratteri (massimo 72) e non può coincidere con lo username";
+    public static final String UTENTE_NON_TROVATO = "Utente non trovato con ID ";
+    public static final String UTENTE_ULTIMO_ADMIN = "Deve restare almeno un amministratore attivo";
+    public static final String UTENTE_AUTO_MODIFICA = "Non puoi cambiare il tuo ruolo, disattivarti o eliminarti: chiedi a un altro amministratore";
+    public static final String UTENTE_PASSWORD_ATTUALE_ERRATA = "La password attuale non è corretta";
 }

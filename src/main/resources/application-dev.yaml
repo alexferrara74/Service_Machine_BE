@@ -1,5 +1,10 @@
 # Profilo di sviluppo: log SQL completi (con i parametri). Non usarlo in produzione:
 # i parametri possono contenere dati dei clienti. Attivare con --spring.profiles.active=dev
+# Solo sviluppo locale: segreto JWT fisso e noto, mai usarlo altrove.
+security:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
+
 spring:
   jpa:
     show-sql: true

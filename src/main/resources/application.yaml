@@ -52,6 +52,17 @@ spring:
       write-dates-as-timestamps: false
     default-property-inclusion: non_null
 
+# --- SICUREZZA ---
+# Il segreto JWT non ha un valore predefinito: senza JWT_SECRET (almeno 32 caratteri casuali) l'applicazione non parte.
+# Il primo amministratore si crea all'avvio se la tabella utenti è vuota (ADMIN_USERNAME / ADMIN_PASSWORD).
+security:
+  jwt:
+    secret: ${JWT_SECRET:}
+    ttl-minutes: ${JWT_TTL_MINUTES:480}
+  bootstrap:
+    admin-username: ${ADMIN_USERNAME:admin}
+    admin-password: ${ADMIN_PASSWORD:}
+
 # --- SWAGGER / OPENAPI ---
 springdoc:
   api-docs:
