@@ -17,5 +17,8 @@ public interface MagazzinoDigitaleRepository extends JpaRepository<MagazzinoDigi
     List<MagazzinoDigitale> findByZona(String zona);
     List<MagazzinoDigitale> findByZonaAndScaffale(String zona, String scaffale);
 
+    List<MagazzinoDigitale> findByScaffaleIdOrderByRipianoNumAscPosizioneNumAsc(Long scaffaleId);
+    List<MagazzinoDigitale> findByScaffaleIdIsNotNull();
+
     List<MagazzinoDigitale> findByAggiornatoIlAfter(LocalDateTime since);
 }

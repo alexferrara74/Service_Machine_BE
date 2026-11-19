@@ -72,6 +72,17 @@ public final class ErrorConstants {
     public static final String MAGAZZINO_ELIMINAZIONE_BLOCCATA = "L'ubicazione non può essere eliminata perché contiene giacenze di articoli: ";
     public static final String ARTICOLO_NON_TROVATO = "Articolo non trovato nel catalogo con ID ";
 
+    // --- SCAFFALI 3D ---
+    public static final String SCAFFALE_DTO_NULL = "I dati dello scaffale non possono essere null";
+    public static final String SCAFFALE_NON_TROVATO = "Scaffale non trovato con ID ";
+    public static final String SCAFFALE_CODICE_DUPLICATO = "Codice scaffale già utilizzato: ";
+    public static final String SCAFFALE_CODICE_NON_VALIDO = "Il codice scaffale può contenere solo lettere, numeri e trattino (max 20 caratteri)";
+    public static final String SCAFFALE_DIMENSIONI_INVALIDE = "Larghezza, profondità e altezza dello scaffale devono essere maggiori di zero";
+    public static final String SCAFFALE_ROTAZIONE_INVALIDA = "La rotazione deve essere 0, 90, 180 o 270 gradi";
+    public static final String SCAFFALE_GRIGLIA_INVALIDA = "Ripiani e posizioni per ripiano devono essere tra 1 e 50";
+    public static final String SCAFFALE_RIDUZIONE_BLOCCATA = "Impossibile ridurre ripiani/posizioni: le seguenti celle contengono articoli: ";
+    public static final String SCAFFALE_ELIMINAZIONE_BLOCCATA = "Lo scaffale non può essere eliminato perché alcune celle contengono articoli: ";
+
     // --- MAGAZZINO POSIZIONI ARTICOLI ---
     public static final String POSIZIONE_DTO_NULL = "I dati della posizione articolo non possono essere null";
     public static final String POSIZIONE_UBICAZIONE_OBBLIGATORIA = "L'ID ubicazione è obbligatorio";

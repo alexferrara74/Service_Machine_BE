@@ -18,7 +18,8 @@ import java.time.LocalDateTime;
                 @UniqueConstraint(name = "codice_ubicazione", columnNames = {"codice_ubicazione"})
         },
         indexes = {
-                @Index(name = "idx_magazzino_zona_scaffale", columnList = "zona, scaffale")
+                @Index(name = "idx_magazzino_zona_scaffale", columnList = "zona, scaffale"),
+                @Index(name = "idx_magazzino_scaffale_id", columnList = "scaffale_id")
         }
 )
 @Getter
@@ -44,6 +45,15 @@ public class MagazzinoDigitale {
 
     @Column(name = "ripiano", length = 50)
     private String ripiano;
+
+    @Column(name = "scaffale_id")
+    private Long scaffaleId;
+
+    @Column(name = "ripiano_num")
+    private Integer ripianoNum;
+
+    @Column(name = "posizione_num")
+    private Integer posizioneNum;
 
     @Column(name = "capacita_max")
     private Integer capacitaMax;
