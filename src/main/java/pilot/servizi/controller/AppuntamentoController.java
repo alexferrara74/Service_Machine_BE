@@ -5,7 +5,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,7 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
 import pilot.servizi.dto.request.AppuntamentoRequest;
 import pilot.servizi.dto.request.AppuntamentoStatoRequest;
 import pilot.servizi.dto.response.AppuntamentoResponse;
+import pilot.servizi.entity.AppuntamentoAssistenza;
 import pilot.servizi.service.AppuntamentoAssistenzaService;
+import pilot.servizi.service.AppuntamentoExportService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +38,7 @@ import java.util.List;
 public class AppuntamentoController {
 
     private final AppuntamentoAssistenzaService service;
+    private final AppuntamentoExportService exportService;
 
     @GetMapping
     @Operation(summary = "Appuntamenti nell'intervallo [da, a) per il calendario")
@@ -40,6 +47,21 @@ public class AppuntamentoController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime a
     ) {
         return service.getByIntervallo(da, a);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Esporta in Excel (xlsx) o PDF gli appuntamenti dell'intervallo [da, a): giorno, settimana o mese")
+    public ResponseEntity<byte[]> esporta(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime da,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime a,
+            @RequestParam(defaultValue = "xlsx") String formato,
+            @RequestParam(required = false) List<AppuntamentoAssistenza.Stato> stati
+    ) {
+        AppuntamentoExportService.Risultato r = exportService.esporta(da, a, stati, AppuntamentoExportService.Formato.from(formato));
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(r.formato().contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(r.nomeFile()).build().toString())
+                .body(r.contenuto());
     }
 
     @GetMapping("/noleggio/{docId}")

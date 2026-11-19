@@ -9,6 +9,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.service.AppuntamentoAssistenzaService;
+import pilot.servizi.service.AppuntamentoExportService;
 import pilot.servizi.service.ClienteStatisticheService;
 import pilot.servizi.service.ClientiService;
 
@@ -37,6 +38,9 @@ class ErrorHandlingWebTest {
 
     @MockitoBean
     private AppuntamentoAssistenzaService appuntamentoService;
+
+    @MockitoBean
+    private AppuntamentoExportService appuntamentoExportService;
 
     @Test
     void nonNumericPathVariableIsABadRequest() throws Exception {
@@ -140,6 +144,13 @@ class ErrorHandlingWebTest {
     void appointmentWithoutTitleIsRejectedByValidation() throws Exception {
         mvc.perform(post("/api/appuntamenti").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"stato\":\"DA_FARE\",\"inizio\":\"2026-11-20T09:00:00\",\"fine\":\"2026-11-20T10:00:00\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void exportWithAnUnknownFormatIsABadRequest() throws Exception {
+        mvc.perform(get("/api/appuntamenti/export").param("da", "2026-11-16T00:00:00").param("a", "2026-11-23T00:00:00").param("formato", "doc"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
     }
