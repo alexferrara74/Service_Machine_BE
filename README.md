@@ -248,10 +248,13 @@ I valori predefiniti servono solo allo sviluppo locale; negli altri ambienti van
 | `SYNC_SERVICE_URL` | `http://localhost:3000/api/sincronizza` | Endpoint del microservizio di integrazione |
 | `SYNC_API_TOKEN` | vuoto | Se valorizzato è inviato come `Bearer` al microservizio (che deve avere lo stesso `SYNC_API_TOKEN`) |
 | `FLYWAY_ENABLED` | `true` | `false` per disattivare le migrazioni automatiche |
+| `JWT_SECRET` | **nessuno (obbligatoria)** | Segreto per firmare i token: almeno 32 caratteri casuali |
+| `JWT_TTL_MINUTES` | `480` | Durata del token in minuti |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / generata | Primo amministratore, creato solo se non esistono utenti |
 
 Il log SQL con i parametri (che possono contenere dati dei clienti) è spento di default; per attivarlo in sviluppo: `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`.
 
-**Sicurezza:** il backend non ha autenticazione né autorizzazione. Va esposto solo su una rete interna fidata (o dietro un proxy che autentichi); l'introduzione di un login è una decisione di prodotto ancora da prendere.
+**Sicurezza:** l'accesso a `/api/**` richiede un login con token JWT e due ruoli (`ADMIN` e `VIEWER`): vedi «Utenti e ruoli» più sotto. `JWT_SECRET` è obbligatoria; senza non parte. Esporre comunque il servizio solo su HTTPS (o dietro un proxy che lo termini): il token viaggia a ogni richiesta.
 
 ### Migrazioni database (Flyway)
 
