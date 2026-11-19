@@ -290,3 +290,22 @@ Clienti (`local_clienti`), catalogo (`local_prodotti`) e attrezzature (`local_at
 - `POST /api/prodotti/catalogo` registra a mano un articolo (tipicamente un'attrezzatura che l'ERP non ha); il resto del catalogo resta di sola lettura.
 - `local_clienti.id` e `local_prodotti.articolo_id` non sono auto-increment (li assegna l'ERP): per le righe manuali il service assegna l'id a partire da **1.000.000.000**, così non collidono con gli id dell'ERP. Presupposto da verificare: gli id ERP restano sotto il miliardo.
 - La migrazione `V4__origine_clienti.sql` aggiunge `origine` a `local_clienti` con default `ERP`: il microservizio ERP, che non conosce la colonna, continua a scrivere righe `ERP`.
+
+## Utenti e ruoli
+
+L'accesso a `/api/**` richiede un token JWT (`Authorization: Bearer …`) ottenuto con `POST /api/auth/login`.
+
+| Ruolo | Cosa può fare |
+|---|---|
+| `ADMIN` | Tutto: letture, scritture, sincronizzazione ERP, gestione utenti (`/api/utenti`) |
+| `VIEWER` | Solo letture (`GET`) ed esportazioni; ogni altra chiamata riceve `403`. Può cambiare la propria password |
+
+Il controllo è lato server: nascondere i pulsanti nel frontend è solo comodità. Il ruolo si rilegge dal database a ogni richiesta, quindi disattivare o declassare un utente ha effetto subito; il cambio password invalida i token emessi prima.
+
+### Configurazione (variabili d'ambiente)
+- `JWT_SECRET` — **obbligatoria**: almeno 32 caratteri casuali. Senza, l'applicazione non parte. Nel profilo `dev` c'è un valore fisso solo per lo sviluppo locale.
+- `JWT_TTL_MINUTES` — durata del token, 480 (8 ore) di default.
+- `ADMIN_USERNAME` (default `admin`) e `ADMIN_PASSWORD` — usate solo al primo avvio, quando la tabella `utenti` è vuota, per creare il primo amministratore. Se `ADMIN_PASSWORD` manca viene generata una password casuale scritta **una sola volta** nel log: annotala e cambiala subito.
+- La migrazione `V5__utenti.sql` crea la tabella `utenti` (password solo come hash BCrypt).
+
+Regole: password di almeno 10 caratteri; non si può eliminare, disattivare o declassare se stessi né l'ultimo amministratore attivo; dopo 5 login falliti l'utente è bloccato per 5 minuti (contatore in memoria, si azzera al riavvio).
