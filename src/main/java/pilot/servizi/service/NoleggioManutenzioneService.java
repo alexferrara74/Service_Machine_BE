@@ -86,7 +86,11 @@ public class NoleggioManutenzioneService {
                 ? noleggio.getDataDoc()
                 : ultimaManutenzioneOrdinaria.getEseguitaIl().toLocalDate();
         ClienteManutenzionePeriodo periodoApplicabile = periodoPerRiferimento(dataRiferimento, periodi);
+        int prorogaAttiva = prorogaAttiva(docId, ultimaManutenzioneOrdinaria);
         LocalDate prossimaManutenzione = calcolaProssimaManutenzione(dataRiferimento, periodoApplicabile);
+        if (prossimaManutenzione != null) {
+            prossimaManutenzione = prossimaManutenzione.plusDays(prorogaAttiva);
+        }
         Long giorniAllaManutenzione = prossimaManutenzione == null
                 ? null
                 : ChronoUnit.DAYS.between(LocalDate.now(), prossimaManutenzione);
@@ -114,8 +118,46 @@ public class NoleggioManutenzioneService {
                 prossimaManutenzione,
                 giorniAllaManutenzione == null ? null : Math.toIntExact(giorniAllaManutenzione),
                 stato,
-                periodoApplicabile == null ? null : periodoApplicabile.getIntervalloGiorni()
+                periodoApplicabile == null ? null : periodoApplicabile.getIntervalloGiorni(),
+                prorogaAttiva
         );
+    }
+
+    /** Giorni di proroga accumulati nel ciclo corrente: dall'ultima ordinaria (inclusa) in poi. */
+    private int prorogaAttiva(Integer docId, NoleggioManutenzione ultimaOrdinaria) {
+        long da = ultimaOrdinaria == null || ultimaOrdinaria.getId() == null ? 0L : ultimaOrdinaria.getId();
+        return getEventiEntity(docId).stream()
+                .filter(e -> e.getId() == null || e.getId() >= da)
+                .mapToInt(e -> e.getGiorniProroga() == null ? 0 : e.getGiorniProroga())
+                .sum();
+    }
+
+    /** Registra una manutenzione nata da un appuntamento: il tipo lo ha scelto l'operatore. */
+    @Transactional
+    public NoleggioManutenzione registraDaAppuntamento(
+            Integer docId,
+            NoleggioManutenzione.Tipo tipo,
+            String note,
+            String esito,
+            int giorniProroga,
+            Long appuntamentoId
+    ) {
+        StoriaNoleggi noleggio = getNoleggio(docId, "registraDaAppuntamento");
+        NoleggioManutenzioneConfigurazione config = configurazioniRepo.findById(docId).orElse(null);
+        double acquistata = 0d;
+        if (config != null && noleggio.getClienteId() != null) {
+            acquistata = quantitaAcquistata(requireCliente(noleggio, "registraDaAppuntamento"), config);
+        }
+        return manutenzioniRepo.save(NoleggioManutenzione.builder()
+                .docId(docId)
+                .tipo(tipo)
+                .quantitaAcquistataTotale(acquistata)
+                .eseguitaIl(LocalDateTime.now())
+                .note(note)
+                .esito(esito)
+                .giorniProroga(giorniProroga)
+                .appuntamentoId(appuntamentoId)
+                .build());
     }
 
     @Transactional
@@ -390,7 +432,10 @@ public class NoleggioManutenzioneService {
                 evento.getTipo().name(),
                 evento.getQuantitaAcquistataTotale(),
                 evento.getEseguitaIl(),
-                evento.getNote()
+                evento.getNote(),
+                evento.getEsito(),
+                evento.getGiorniProroga(),
+                evento.getAppuntamentoId()
         );
     }
 }

@@ -174,6 +174,23 @@ class NoleggioManutenzioneServiceTest {
     }
 
     @Test
+    void positiveAppointmentExtendsTheNextDueDate() {
+        service.registraDaAppuntamento(42, NoleggioManutenzione.Tipo.ORDINARIA, "tutto ok", "POSITIVO", 15, 9L);
+
+        var stato = service.getStato(42);
+        assertEquals(LocalDate.now().plusDays(45), stato.prossimaManutenzioneIl());
+        assertEquals(15, stato.giorniProrogaAttivi());
+
+        // una straordinaria positiva successiva allunga ancora lo stesso ciclo
+        service.registraDaAppuntamento(42, NoleggioManutenzione.Tipo.STRAORDINARIA, "verifica", "POSITIVO", 5, 10L);
+        assertEquals(LocalDate.now().plusDays(50), service.getStato(42).prossimaManutenzioneIl());
+
+        // una nuova ordinaria apre un ciclo nuovo: la vecchia proroga non conta più
+        service.registraDaAppuntamento(42, NoleggioManutenzione.Tipo.ORDINARIA, "ok", "NEGATIVO", 0, 11L);
+        assertEquals(LocalDate.now().plusDays(30), service.getStato(42).prossimaManutenzioneIl());
+    }
+
+    @Test
     void extraordinaryMaintenanceCanBeRegisteredWithoutChangingOrdinarySchedule() {
         var evento = service.registraStraordinaria(42, new NoleggioManutenzioneRequest("guasto"));
 

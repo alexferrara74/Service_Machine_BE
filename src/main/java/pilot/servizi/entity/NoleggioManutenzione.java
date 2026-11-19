@@ -54,4 +54,14 @@ public class NoleggioManutenzione {
 
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
+
+    /** Valorizzati solo per le manutenzioni nate da un appuntamento. */
+    @Column(name = "esito", length = 20)
+    private String esito;
+
+    @Column(name = "giorni_proroga")
+    private Integer giorniProroga;
+
+    @Column(name = "appuntamento_id")
+    private Long appuntamentoId;
 }

@@ -72,6 +72,19 @@ public final class ErrorConstants {
     public static final String MAGAZZINO_ELIMINAZIONE_BLOCCATA = "L'ubicazione non può essere eliminata perché contiene giacenze di articoli: ";
     public static final String ARTICOLO_NON_TROVATO = "Articolo non trovato nel catalogo con ID ";
 
+    // --- APPUNTAMENTI ---
+    public static final String APPUNTAMENTO_NON_TROVATO = "Appuntamento non trovato con ID ";
+    public static final String APPUNTAMENTO_TIPO_INVALIDO = "Il tipo deve essere ORDINARIA o STRAORDINARIA";
+    public static final String APPUNTAMENTO_ESITO_INVALIDO = "L'esito deve essere POSITIVO o NEGATIVO";
+    public static final String APPUNTAMENTO_ESITO_OBBLIGATORIO = "Per chiudere l'appuntamento indica l'esito (positivo o negativo)";
+    public static final String APPUNTAMENTO_RESOCONTO_OBBLIGATORIO = "Per chiudere l'appuntamento scrivi il resoconto";
+    public static final String APPUNTAMENTO_NON_MODIFICABILE = "L'appuntamento è già chiuso o annullato e non può essere modificato: ";
+    public static final String APPUNTAMENTO_ELIMINAZIONE_BLOCCATA = "Un appuntamento completato non può essere eliminato: ";
+    public static final String FOTO_NON_TROVATA = "Foto non trovata con ID ";
+    public static final String FOTO_NON_VALIDA = "La foto deve essere un'immagine JPEG, PNG o WebP non vuota";
+    public static final String FOTO_TROPPO_GRANDE = "La foto supera la dimensione massima di 10 MB";
+    public static final String FOTO_LIMITE = "Raggiunto il numero massimo di 20 foto per appuntamento";
+
     // --- SCAFFALI 3D ---
     public static final String SCAFFALE_DTO_NULL = "I dati dello scaffale non possono essere null";
     public static final String SCAFFALE_NON_TROVATO = "Scaffale non trovato con ID ";
