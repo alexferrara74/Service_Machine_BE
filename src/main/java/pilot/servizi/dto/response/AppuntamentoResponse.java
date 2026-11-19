@@ -14,7 +14,8 @@ public record AppuntamentoResponse(
         String tipo,
         String esito,
         String resoconto,
-        Integer giorniProroga,
+        Integer giorniProrogaOrdinaria,
+        Integer giorniProrogaStraordinaria,
         Integer intervalloManutenzioneGiorni,
         LocalDateTime completatoIl,
         List<Foto> foto

@@ -13,5 +13,6 @@ public record AppuntamentoRequest(
         @NotNull(message = "Il tipo (ordinaria o straordinaria) è obbligatorio") String tipo,
         String esito,
         @Size(max = 5000) String resoconto,
-        @Min(0) @Max(365) Integer giorniProroga
+        @Min(0) @Max(365) Integer giorniProrogaOrdinaria,
+        @Min(0) @Max(365) Integer giorniProrogaStraordinaria
 ) {}

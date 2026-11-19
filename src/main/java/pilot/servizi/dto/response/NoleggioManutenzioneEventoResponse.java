@@ -10,7 +10,8 @@ public record NoleggioManutenzioneEventoResponse(
         LocalDateTime eseguitaIl,
         String note,
         String esito,
-        Integer giorniProroga,
+        Integer giorniProrogaOrdinaria,
+        Integer giorniProrogaStraordinaria,
         Long appuntamentoId
 ) {
 }

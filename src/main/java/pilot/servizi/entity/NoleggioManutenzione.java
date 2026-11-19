@@ -60,7 +60,10 @@ public class NoleggioManutenzione {
     private String esito;
 
     @Column(name = "giorni_proroga")
-    private Integer giorniProroga;
+    private Integer giorniProrogaOrdinaria;
+
+    @Column(name = "giorni_proroga_straordinaria")
+    private Integer giorniProrogaStraordinaria;
 
     @Column(name = "appuntamento_id")
     private Long appuntamentoId;

@@ -57,9 +57,13 @@ public class NoleggioAppuntamento {
     @Column(name = "resoconto", columnDefinition = "TEXT")
     private String resoconto;
 
-    /** Giorni di cui viene allungata la prossima scadenza quando l'esito è positivo. */
+    /** Giorni di cui viene allungata la prossima manutenzione ordinaria (esito positivo). */
     @Column(name = "giorni_proroga")
-    private Integer giorniProroga;
+    private Integer giorniProrogaOrdinaria;
+
+    /** Giorni di cui viene allungata la prossima manutenzione straordinaria (esito positivo). */
+    @Column(name = "giorni_proroga_straordinaria")
+    private Integer giorniProrogaStraordinaria;
 
     @Column(name = "completato_il")
     private LocalDateTime completatoIl;

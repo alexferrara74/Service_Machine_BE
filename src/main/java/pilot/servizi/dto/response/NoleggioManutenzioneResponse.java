@@ -25,6 +25,8 @@ public record NoleggioManutenzioneResponse(
         Integer giorniAllaManutenzione,
         String statoManutenzione,
         Integer intervalloManutenzioneGiorni,
-        Integer giorniProrogaAttivi
+        Integer giorniProrogaAttivi,
+        LocalDate prossimaStraordinariaIl,
+        Integer giorniProrogaStraordinariaAttivi
 ) {
 }

@@ -51,13 +51,13 @@ class NoleggioAppuntamentoServiceTest {
         lenient().when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
         lenient().when(fotoRepo.findByAppuntamentoIdOrderByIdAsc(anyLong())).thenReturn(List.of());
         NoleggioManutenzione evento = NoleggioManutenzione.builder().id(99L).eseguitaIl(LocalDateTime.now()).build();
-        lenient().when(manutenzioneService.registraDaAppuntamento(anyInt(), any(), any(), any(), anyInt(), any())).thenReturn(evento);
+        lenient().when(manutenzioneService.registraDaAppuntamento(anyInt(), any(), any(), any(), anyInt(), anyInt(), any())).thenReturn(evento);
     }
 
     private static long anyLong() { return org.mockito.ArgumentMatchers.anyLong(); }
 
     private AppuntamentoRequest chiusura(String tipo, String esito, String resoconto, Integer proroga) {
-        return new AppuntamentoRequest(LocalDateTime.now(), tipo, esito, resoconto, proroga);
+        return new AppuntamentoRequest(LocalDateTime.now(), tipo, esito, resoconto, proroga, null);
     }
 
     @Test
@@ -65,9 +65,9 @@ class NoleggioAppuntamentoServiceTest {
         var out = service.completa(42, 5L, chiusura("STRAORDINARIA", "POSITIVO", "Tutto regolare", 20));
 
         assertEquals("COMPLETATO", out.stato());
-        assertEquals(20, out.giorniProroga());
+        assertEquals(20, out.giorniProrogaOrdinaria());
         verify(manutenzioneService).registraDaAppuntamento(42, NoleggioManutenzione.Tipo.STRAORDINARIA,
-                "Tutto regolare", "POSITIVO", 20, 5L);
+                "Tutto regolare", "POSITIVO", 20, 0, 5L);
         assertEquals(99L, aperto.getManutenzioneId());
     }
 
@@ -79,14 +79,21 @@ class NoleggioAppuntamentoServiceTest {
 
         service.completa(42, 5L, chiusura("ORDINARIA", "POSITIVO", "ok", null));
 
-        verify(manutenzioneService).registraDaAppuntamento(42, NoleggioManutenzione.Tipo.ORDINARIA, "ok", "POSITIVO", 30, 5L);
+        verify(manutenzioneService).registraDaAppuntamento(42, NoleggioManutenzione.Tipo.ORDINARIA, "ok", "POSITIVO", 30, 0, 5L);
+    }
+
+    @Test
+    void operatorCanExtendOrdinaryAndExtraordinaryTogether() {
+        service.completa(42, 5L, new AppuntamentoRequest(LocalDateTime.now(), "ORDINARIA", "POSITIVO", "ok", 10, 45));
+
+        verify(manutenzioneService).registraDaAppuntamento(42, NoleggioManutenzione.Tipo.ORDINARIA, "ok", "POSITIVO", 10, 45, 5L);
     }
 
     @Test
     void negativeOutcomeNeverExtends() {
         service.completa(42, 5L, chiusura("ORDINARIA", "NEGATIVO", "guasto", 40));
 
-        verify(manutenzioneService).registraDaAppuntamento(42, NoleggioManutenzione.Tipo.ORDINARIA, "guasto", "NEGATIVO", 0, 5L);
+        verify(manutenzioneService).registraDaAppuntamento(42, NoleggioManutenzione.Tipo.ORDINARIA, "guasto", "NEGATIVO", 0, 0, 5L);
     }
 
     @Test
@@ -94,7 +101,7 @@ class NoleggioAppuntamentoServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.completa(42, 5L, chiusura("ORDINARIA", null, "x", null)));
         aperto.setEsito(null);
         assertThrows(IllegalArgumentException.class, () -> service.completa(42, 5L, chiusura("ORDINARIA", "POSITIVO", "  ", null)));
-        verify(manutenzioneService, never()).registraDaAppuntamento(anyInt(), any(), any(), any(), anyInt(), any());
+        verify(manutenzioneService, never()).registraDaAppuntamento(anyInt(), any(), any(), any(), anyInt(), anyInt(), any());
     }
 
     @Test

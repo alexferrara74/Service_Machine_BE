@@ -84,8 +84,8 @@ public class NoleggioAppuntamentoService {
 
     /**
      * Chiude l'appuntamento e registra la manutenzione nello storico del noleggio con il tipo scelto
-     * dall'operatore. Con esito positivo la prossima scadenza viene allungata di giorniProroga
-     * (se non indicato: metà dell'intervallo attivo).
+     * dall'operatore. Con esito positivo le prossime scadenze dell'ordinaria e/o della straordinaria
+     * vengono allungate dei giorni indicati (ordinaria non indicata: metà dell'intervallo attivo).
      */
     @Transactional
     public AppuntamentoResponse completa(Integer docId, Long id, AppuntamentoRequest dto) {
@@ -99,14 +99,17 @@ public class NoleggioAppuntamentoService {
             throw validation(ErrorConstants.APPUNTAMENTO_RESOCONTO_OBBLIGATORIO);
         }
 
-        int proroga = 0;
+        int prorogaOrdinaria = 0;
+        int prorogaStraordinaria = 0;
         if (a.getEsito() == Esito.POSITIVO) {
-            proroga = a.getGiorniProroga() != null ? a.getGiorniProroga() : propostaProroga(docId);
+            prorogaOrdinaria = a.getGiorniProrogaOrdinaria() != null ? a.getGiorniProrogaOrdinaria() : propostaProroga(docId);
+            prorogaStraordinaria = a.getGiorniProrogaStraordinaria() != null ? a.getGiorniProrogaStraordinaria() : 0;
         }
-        a.setGiorniProroga(proroga);
+        a.setGiorniProrogaOrdinaria(prorogaOrdinaria);
+        a.setGiorniProrogaStraordinaria(prorogaStraordinaria);
 
         NoleggioManutenzione evento = manutenzioneService.registraDaAppuntamento(
-                docId, a.getTipo(), a.getResoconto(), a.getEsito().name(), proroga, a.getId());
+                docId, a.getTipo(), a.getResoconto(), a.getEsito().name(), prorogaOrdinaria, prorogaStraordinaria, a.getId());
         a.setStato(Stato.COMPLETATO);
         a.setCompletatoIl(evento.getEseguitaIl());
         a.setManutenzioneId(evento.getId());
@@ -219,7 +222,8 @@ public class NoleggioAppuntamentoService {
         a.setEsito(dto.esito() == null || dto.esito().isBlank()
                 ? null : parse(Esito.class, dto.esito(), ErrorConstants.APPUNTAMENTO_ESITO_INVALIDO));
         a.setResoconto(Texts.clean(dto.resoconto()));
-        a.setGiorniProroga(dto.giorniProroga());
+        a.setGiorniProrogaOrdinaria(dto.giorniProrogaOrdinaria());
+        a.setGiorniProrogaStraordinaria(dto.giorniProrogaStraordinaria());
     }
 
     private <E extends Enum<E>> E parse(Class<E> type, String value, String message) {
@@ -289,7 +293,7 @@ public class NoleggioAppuntamentoService {
                 .map(f -> new AppuntamentoResponse.Foto(f.getId(), f.getNomeFile())).toList();
         return new AppuntamentoResponse(a.getId(), a.getDocId(), clienteId, cliente,
                 n == null ? null : n.getMatricola(), a.getDataPrevista(), a.getStato().name(), a.getTipo().name(),
-                a.getEsito() == null ? null : a.getEsito().name(), a.getResoconto(), a.getGiorniProroga(),
+                a.getEsito() == null ? null : a.getEsito().name(), a.getResoconto(), a.getGiorniProrogaOrdinaria(), a.getGiorniProrogaStraordinaria(),
                 intervallo, a.getCompletatoIl(), foto);
     }
 
