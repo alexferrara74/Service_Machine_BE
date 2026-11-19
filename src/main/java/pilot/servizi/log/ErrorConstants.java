@@ -118,4 +118,15 @@ public final class ErrorConstants {
     public static final String PRODOTTO_CODICE_OBBLIGATORIO = "Il codice articolo è obbligatorio e non può essere vuoto";
     public static final String PRODOTTO_QUANTITA_INVALIDA = "La quantità del prodotto è obbligatoria e non può essere negativa";
     public static final String PRODOTTO_NON_TROVATO = "Record storico prodotto non trovato con ID ";
+
+    // --- APPUNTAMENTI ASSISTENZA ---
+    public static final String APPUNTAMENTO_DTO_NULL = "I dati dell'appuntamento non possono essere null";
+    public static final String APPUNTAMENTO_TITOLO_OBBLIGATORIO = "Il titolo dell'appuntamento è obbligatorio e non può essere vuoto";
+    public static final String APPUNTAMENTO_STATO_OBBLIGATORIO = "Lo stato dell'appuntamento è obbligatorio";
+    public static final String APPUNTAMENTO_DATE_OBBLIGATORIE = "Data di inizio e di fine dell'appuntamento sono obbligatorie";
+    public static final String APPUNTAMENTO_DATE_INCOERENTI = "La fine dell'appuntamento deve essere successiva all'inizio";
+    public static final String APPUNTAMENTO_CLIENTE_OBBLIGATORIO = "Senza un noleggio censito il nome del cliente è obbligatorio";
+    public static final String APPUNTAMENTO_CAMPO_TOO_LONG = "Un campo dell'appuntamento supera la lunghezza massima consentita: ";
+    public static final String APPUNTAMENTO_NON_TROVATO = "Appuntamento non trovato con ID ";
+    public static final String APPUNTAMENTO_INTERVALLO_INVALIDO = "L'intervallo del calendario richiede una data iniziale precedente a quella finale";
 }

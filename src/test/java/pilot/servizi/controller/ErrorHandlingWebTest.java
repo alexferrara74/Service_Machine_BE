@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import pilot.servizi.log.ResourceNotFoundException;
+import pilot.servizi.service.AppuntamentoAssistenzaService;
 import pilot.servizi.service.ClienteStatisticheService;
 import pilot.servizi.service.ClientiService;
 
@@ -22,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Verifica che GlobalExceptionHandler traduca gli errori del client in 4xx e non in 500. */
-@WebMvcTest({ClienteController.class, ClienteStatisticheController.class})
+@WebMvcTest({ClienteController.class, ClienteStatisticheController.class, AppuntamentoController.class})
 class ErrorHandlingWebTest {
 
     @Autowired
@@ -33,6 +34,9 @@ class ErrorHandlingWebTest {
 
     @MockitoBean
     private ClienteStatisticheService statisticheService;
+
+    @MockitoBean
+    private AppuntamentoAssistenzaService appuntamentoService;
 
     @Test
     void nonNumericPathVariableIsABadRequest() throws Exception {
@@ -116,5 +120,27 @@ class ErrorHandlingWebTest {
         mvc.perform(get("/api/clienti/1"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value("Si è verificato un errore interno nel server"));
+    }
+
+    @Test
+    void calendarRangeWithoutDatesIsABadRequest() throws Exception {
+        mvc.perform(get("/api/appuntamenti"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void unknownAppointmentStatusIsABadRequest() throws Exception {
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/appuntamenti/1/stato")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"stato\":\"BOH\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void appointmentWithoutTitleIsRejectedByValidation() throws Exception {
+        mvc.perform(post("/api/appuntamenti").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"stato\":\"DA_FARE\",\"inizio\":\"2026-11-20T09:00:00\",\"fine\":\"2026-11-20T10:00:00\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
     }
 }
