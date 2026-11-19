@@ -43,6 +43,9 @@ class ErrorHandlingWebTest {
     private UtenteRepository utenteRepository;
 
     @MockitoBean
+    private pilot.servizi.service.RegistroService registroService;
+
+    @MockitoBean
     private ClientiService clientiService;
 
     @MockitoBean

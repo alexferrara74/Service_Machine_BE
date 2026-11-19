@@ -17,6 +17,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
+import pilot.servizi.service.RegistroService;
 import pilot.servizi.dto.response.ErrorResponse;
 import pilot.servizi.entity.Utente.Ruolo;
 import pilot.servizi.log.ErrorConstants;
@@ -28,7 +30,7 @@ import java.time.LocalDateTime;
  * Regole di accesso:
  * <ul>
  *   <li>login pubblico;</li>
- *   <li>/api/utenti solo ADMIN;</li>
+ *   <li>/api/utenti e /api/registro solo ADMIN;</li>
  *   <li>cambio password e profilo per qualsiasi utente autenticato;</li>
  *   <li>letture (GET/HEAD/OPTIONS) per ADMIN e VIEWER; ogni altro metodo solo ADMIN.</li>
  * </ul>
@@ -39,7 +41,7 @@ import java.time.LocalDateTime;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, UtenteJwtConverter converter, ObjectMapper mapper) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, UtenteJwtConverter converter, ObjectMapper mapper, RegistroService registro) throws Exception {
         AuthenticationEntryPoint entryPoint = (req, res, ex) ->
                 scrivi(mapper, req, res, 401, "UNAUTHORIZED", ErrorConstants.AUTH_NON_AUTENTICATO);
         AccessDeniedHandler denied = (req, res, ex) ->
@@ -53,7 +55,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/auth/**").authenticated()
-                        .requestMatchers("/api/utenti/**").hasRole(Ruolo.ADMIN.name())
+                        .requestMatchers("/api/utenti/**", "/api/registro/**").hasRole(Ruolo.ADMIN.name())
                         .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole(Ruolo.ADMIN.name(), Ruolo.VIEWER.name())
                         .requestMatchers(HttpMethod.HEAD, "/api/**").hasAnyRole(Ruolo.ADMIN.name(), Ruolo.VIEWER.name())
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
@@ -63,7 +65,8 @@ public class SecurityConfig {
                         .jwt(j -> j.jwtAuthenticationConverter(converter))
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(denied))
-                .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint).accessDeniedHandler(denied));
+                .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint).accessDeniedHandler(denied))
+                .addFilterAfter(new RegistroFilter(registro), BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 

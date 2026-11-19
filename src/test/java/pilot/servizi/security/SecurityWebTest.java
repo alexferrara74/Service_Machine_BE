@@ -11,6 +11,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import pilot.servizi.controller.AuthController;
 import pilot.servizi.controller.ClienteController;
 import pilot.servizi.controller.ErpSyncController;
+import pilot.servizi.controller.RegistroController;
+import pilot.servizi.service.RegistroService;
 import pilot.servizi.controller.UtenteController;
 import pilot.servizi.dto.response.LoginResponse;
 import pilot.servizi.entity.Utente;
@@ -26,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -38,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Le regole di accesso: ADMIN può tutto, VIEWER solo leggere, chi non ha il token non entra. */
-@WebMvcTest({ClienteController.class, UtenteController.class, AuthController.class, ErpSyncController.class})
+@WebMvcTest({ClienteController.class, UtenteController.class, AuthController.class, ErpSyncController.class, RegistroController.class})
 @Import({SecurityConfig.class, JwtService.class, UtenteJwtConverter.class})
 @TestPropertySource(properties = "security.jwt.secret=test-secret-test-secret-test-secret-0123456789")
 class SecurityWebTest {
@@ -60,6 +63,8 @@ class SecurityWebTest {
     private AuthService authService;
     @MockitoBean
     private ErpSyncProxyService erpSync;
+    @MockitoBean
+    private RegistroService registro;
 
     private Utente utente(String username, Ruolo ruolo, boolean attivo) {
         Utente u = Utente.builder().id(1L).username(username).passwordHash("x").ruolo(ruolo).attivo(attivo)
@@ -188,5 +193,42 @@ class SecurityWebTest {
         u.setPasswordModificataIl(LocalDateTime.now().plusMinutes(1));
 
         mvc.perform(get("/api/clienti").header("Authorization", auth)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void onlyAdminsCanReadTheRegistry() throws Exception {
+        mvc.perform(get("/api/registro").header("Authorization", bearer(utente("viewer", Ruolo.VIEWER, true))))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/registro").header("Authorization", bearer(utente("boss", Ruolo.ADMIN, true))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void writesAreRecordedWithWhoDidWhatAndTheOutcome() throws Exception {
+        String boss = bearer(utente("boss", Ruolo.ADMIN, true));
+        mvc.perform(delete("/api/clienti/7").header("Authorization", boss)).andExpect(status().isNoContent());
+
+        verify(registro).registraRichiesta(eq("boss"), eq("ADMIN"), eq("DELETE"), eq("/api/clienti/7"), eq(204), any());
+    }
+
+    @Test
+    void aForbiddenWriteByAViewerIsRecordedAsAttempt() throws Exception {
+        String auth = bearer(utente("viewer", Ruolo.VIEWER, true));
+        mvc.perform(post("/api/clienti").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON).content(CLIENTE))
+                .andExpect(status().isForbidden());
+
+        verify(registro).registraRichiesta(eq("viewer"), eq("VIEWER"), eq("POST"), eq("/api/clienti"), eq(403), any());
+    }
+
+    @Test
+    void plainReadsAnonymousCallsAndLoginAreNotRecordedByTheFilter() throws Exception {
+        when(clientiService.getAll()).thenReturn(List.of());
+        mvc.perform(get("/api/clienti").header("Authorization", bearer(utente("viewer", Ruolo.VIEWER, true)))).andExpect(status().isOk());
+        mvc.perform(post("/api/clienti").contentType(MediaType.APPLICATION_JSON).content(CLIENTE)).andExpect(status().isUnauthorized());
+        when(authService.login(any())).thenReturn(new LoginResponse("t", null, "mario", Ruolo.VIEWER));
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"mario\",\"password\":\"password-lunga-1\"}")).andExpect(status().isOk());
+
+        verify(registro, never()).registraRichiesta(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
     }
 }

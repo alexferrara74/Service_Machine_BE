@@ -12,6 +12,8 @@ import pilot.servizi.dto.request.CambioPasswordRequest;
 import pilot.servizi.dto.request.LoginRequest;
 import pilot.servizi.dto.response.LoginResponse;
 import pilot.servizi.dto.response.UtenteResponse;
+import pilot.servizi.entity.RegistroAttivita.Azione;
+import pilot.servizi.entity.RegistroAttivita.Esito;
 import pilot.servizi.entity.Utente;
 import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
@@ -34,12 +36,14 @@ public class AuthService {
     private final PasswordEncoder encoder;
     private final JwtService jwt;
     private final LoginThrottle throttle;
+    private final RegistroService registro;
 
     @Transactional
     public LoginResponse login(LoginRequest dto) {
         String username = dto.username().trim();
         if (throttle.bloccato(username)) {
-            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, "login", "Account temporaneamente bloccato: " + username);
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, "login", "Account temporaneamente bloccato: " + descrivi(username));
+            registro.registraAccesso(Azione.LOGIN_BLOCCATO, username, null, Esito.RIFIUTATO, "Troppi tentativi falliti");
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, ErrorConstants.AUTH_TROPPI_TENTATIVI);
         }
         Utente utente = repo.findByUsernameIgnoreCase(username).orElse(null);
@@ -47,12 +51,20 @@ public class AuthService {
         // Stessa risposta per username inesistente, password errata o utente disattivato.
         if (utente == null || !passwordOk || !utente.isAttivo()) {
             throttle.fallito(username);
-            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, "login", "Accesso rifiutato per " + username);
+            registro.registraAccesso(Azione.LOGIN_FALLITO, username, null, Esito.NEGATO, !passwordOk || utente == null ? "Credenziali non valide" : "Utente disattivato");
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, "login", "Accesso rifiutato per " + descrivi(username));
             throw new BadCredentialsException(ErrorConstants.AUTH_CREDENZIALI_NON_VALIDE);
         }
         throttle.riuscito(username);
         utente.setUltimoAccesso(LocalDateTime.now());
+        registro.registraAccesso(Azione.LOGIN, utente.getUsername(), utente.getRuolo().name(), Esito.OK, null);
         return jwt.emetti(utente);
+    }
+
+    /** Per i log: mai il testo digitato se non somiglia a uno username (potrebbe essere una password). */
+    private static String descrivi(String username) {
+        String sicuro = RegistroService.usernameSicuro(username);
+        return sicuro != null ? sicuro : "(username non valido)";
     }
 
     public UtenteResponse me(String username) {

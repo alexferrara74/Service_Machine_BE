@@ -11,6 +11,8 @@ import org.springframework.web.server.ResponseStatusException;
 import pilot.servizi.dto.request.CambioPasswordRequest;
 import pilot.servizi.dto.request.LoginRequest;
 import pilot.servizi.dto.response.LoginResponse;
+import pilot.servizi.entity.RegistroAttivita.Azione;
+import pilot.servizi.entity.RegistroAttivita.Esito;
 import pilot.servizi.entity.Utente;
 import pilot.servizi.entity.Utente.Ruolo;
 import pilot.servizi.repository.UtenteRepository;
@@ -25,6 +27,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +38,8 @@ class AuthServiceTest {
 
     @Mock
     private UtenteRepository repo;
+    @Mock
+    private RegistroService registro;
 
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(4);
     private final JwtService jwt = new JwtService("test-secret-test-secret-test-secret-0123456789", 60);
@@ -42,7 +50,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         throttle = new LoginThrottle();
-        service = new AuthService(repo, encoder, jwt, throttle);
+        service = new AuthService(repo, encoder, jwt, throttle, registro);
         mario = Utente.builder().id(1L).username("mario").passwordHash(encoder.encode("password-corretta")).ruolo(Ruolo.VIEWER)
                 .attivo(true).passwordModificataIl(LocalDateTime.now().minusDays(1)).creatoIl(LocalDateTime.now().minusDays(1)).build();
         when(repo.findByUsernameIgnoreCase("mario")).thenReturn(Optional.of(mario));
@@ -101,5 +109,30 @@ class AuthServiceTest {
 
         assertTrue(encoder.matches("nuova-password-1", mario.getPasswordHash()));
         assertTrue(mario.getPasswordModificataIl().isAfter(prima));
+    }
+
+    @Test
+    void recordsSuccessfulFailedAndBlockedLogins() {
+        service.login(new LoginRequest("mario", "password-corretta"));
+        verify(registro).registraAccesso(Azione.LOGIN, "mario", "VIEWER", Esito.OK, null);
+
+        assertThrows(BadCredentialsException.class, () -> service.login(new LoginRequest("mario", "password-sbagliata")));
+        verify(registro).registraAccesso(eq(Azione.LOGIN_FALLITO), eq("mario"), eq(null), eq(Esito.NEGATO), any());
+
+        for (int i = 0; i < LoginThrottle.MAX_TENTATIVI; i++) {
+            try { service.login(new LoginRequest("mario", "password-sbagliata")); } catch (RuntimeException ignored) { }
+        }
+        assertThrows(ResponseStatusException.class, () -> service.login(new LoginRequest("mario", "password-corretta")));
+        verify(registro, org.mockito.Mockito.atLeastOnce()).registraAccesso(eq(Azione.LOGIN_BLOCCATO), eq("mario"), eq(null), eq(Esito.RIFIUTATO), any());
+    }
+
+    @Test
+    void neverPutsThePasswordInTheRegistry() {
+        assertThrows(BadCredentialsException.class, () -> service.login(new LoginRequest("mario", "password-sbagliata")));
+
+        org.mockito.ArgumentCaptor<String> dettaglio = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(registro).registraAccesso(any(), any(), any(), any(), dettaglio.capture());
+        assertFalse(dettaglio.getValue().contains("password-sbagliata"));
+        verify(registro, never()).registraRichiesta(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
     }
 }

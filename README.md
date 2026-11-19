@@ -309,3 +309,11 @@ Il controllo è lato server: nascondere i pulsanti nel frontend è solo comodit�
 - La migrazione `V5__utenti.sql` crea la tabella `utenti` (password solo come hash BCrypt).
 
 Regole: password di almeno 10 caratteri; non si può eliminare, disattivare o declassare se stessi né l'ultimo amministratore attivo; dopo 5 login falliti l'utente è bloccato per 5 minuti (contatore in memoria, si azzera al riavvio).
+
+### Registro attività
+La tabella `registro_attivita` (migrazione `V6`) tiene, in sola aggiunta, chi ha fatto cosa e quando: accessi (riusciti, falliti, bloccati), cambi password, creazioni, modifiche, eliminazioni ed esportazioni, **comprese le richieste negate** (es. un viewer che prova a scrivere). Ogni riga ha utente, ruolo, azione, risorsa e id, esito (`OK`, `NEGATO`, `RIFIUTATO`, `ERRORE`), codice HTTP e indirizzo IP.
+
+- Non contiene i dati inviati né le password; di un login fallito si conserva lo username solo se ha la forma di uno username (chi sbaglia può aver scritto la password nel campo).
+- Consultabile solo dagli admin: `GET /api/registro` (filtri `username`, `azione`, `esito`, `da`, `a`, paginato) e pagina "Registro attività" nel frontend. Nessun endpoint lo modifica o lo svuota.
+- L'IP è quello visto dal server: dietro un reverse proxy è quello del proxy. Gli indirizzi sono dati personali: decidi per quanto conservare il registro (non c'è una pulizia automatica).
+- Un errore di scrittura nel registro viene solo loggato e non blocca l'operazione dell'utente.
