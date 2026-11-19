@@ -34,9 +34,6 @@ import java.util.Locale;
 @Transactional(readOnly = true)
 public class NoleggioAppuntamentoService {
 
-    static final long MAX_FOTO_BYTES = 10L * 1024 * 1024;
-    static final int MAX_FOTO = 20;
-
     public record FotoFile(String nomeFile, String contentType, byte[] contenuto) {}
 
     private final NoleggioAppuntamentoRepository repo;
@@ -144,10 +141,10 @@ public class NoleggioAppuntamentoService {
         if (file == null || file.isEmpty()) {
             throw validation(ErrorConstants.FOTO_NON_VALIDA);
         }
-        if (file.getSize() > MAX_FOTO_BYTES) {
+        if (file.getSize() > ImmagineUpload.MAX_BYTES) {
             throw validation(ErrorConstants.FOTO_TROPPO_GRANDE);
         }
-        if (fotoRepo.countByAppuntamentoId(id) >= MAX_FOTO) {
+        if (fotoRepo.countByAppuntamentoId(id) >= ImmagineUpload.MAX_FOTO) {
             throw conflict("foto", ErrorConstants.FOTO_LIMITE);
         }
         byte[] content;
@@ -156,13 +153,13 @@ public class NoleggioAppuntamentoService {
         } catch (IOException e) {
             throw new UncheckedIOException("Impossibile leggere la foto caricata.", e);
         }
-        String tipo = riconosciImmagine(content);
+        String tipo = ImmagineUpload.riconosci(content);
         if (tipo == null) {
             throw validation(ErrorConstants.FOTO_NON_VALIDA);
         }
         NoleggioAppuntamentoFoto foto = new NoleggioAppuntamentoFoto();
         foto.setAppuntamentoId(id);
-        foto.setNomeFile(nomeSicuro(file.getOriginalFilename(), tipo));
+        foto.setNomeFile(ImmagineUpload.nomeSicuro(file.getOriginalFilename(), tipo));
         foto.setContentType(tipo);
         foto.setContenuto(content);
         foto = fotoRepo.save(foto);
@@ -185,21 +182,6 @@ public class NoleggioAppuntamentoService {
         NoleggioAppuntamentoFoto f = fotoRepo.findByIdAndAppuntamentoId(fotoId, id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorConstants.FOTO_NON_TROVATA + fotoId));
         fotoRepo.delete(f);
-    }
-
-    /** Solo JPEG, PNG e WebP, riconosciuti dai primi byte e non dal nome del file. */
-    static String riconosciImmagine(byte[] c) {
-        if (c.length > 3 && (c[0] & 0xFF) == 0xFF && (c[1] & 0xFF) == 0xD8 && (c[2] & 0xFF) == 0xFF) {
-            return "image/jpeg";
-        }
-        if (c.length > 8 && (c[0] & 0xFF) == 0x89 && c[1] == 'P' && c[2] == 'N' && c[3] == 'G') {
-            return "image/png";
-        }
-        if (c.length > 12 && c[0] == 'R' && c[1] == 'I' && c[2] == 'F' && c[3] == 'F'
-                && c[8] == 'W' && c[9] == 'E' && c[10] == 'B' && c[11] == 'P') {
-            return "image/webp";
-        }
-        return null;
     }
 
     // ---- interni --------------------------------------------------------------------------
@@ -238,15 +220,6 @@ public class NoleggioAppuntamentoService {
         if (a.getStato() != Stato.PROGRAMMATO) {
             throw conflict(op, ErrorConstants.APPUNTAMENTO_NON_MODIFICABILE + a.getId());
         }
-    }
-
-    private String nomeSicuro(String originale, String tipo) {
-        String estensione = switch (tipo) { case "image/png" -> ".png"; case "image/webp" -> ".webp"; default -> ".jpg"; };
-        String base = originale == null ? "foto" : originale.replaceAll("^.*[\\\\/]", "").replaceAll("\\.[^.]*$", "");
-        base = base.replaceAll("[^A-Za-z0-9_-]", "_");
-        if (base.isBlank()) base = "foto";
-        if (base.length() > 80) base = base.substring(0, 80);
-        return base + estensione;
     }
 
     private StoriaNoleggi getNoleggio(Integer docId) {

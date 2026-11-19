@@ -40,7 +40,7 @@ class AppuntamentoExportServiceTest {
     private AppuntamentoResponse riga(long id, Stato stato, String cliente, boolean censito) {
         return new AppuntamentoResponse(id, censito ? 1 : null, censito, null, cliente, "011", "Via Roma 1", "M-1",
                 "Idropulitrice", "Revisione àèì", "note", stato,
-                LocalDateTime.of(2026, 11, 19, 9, 0), LocalDateTime.of(2026, 11, 19, 10, 30), "Marco");
+                LocalDateTime.of(2026, 11, 19, 9, 0), LocalDateTime.of(2026, 11, 19, 10, 30), "Marco", java.util.List.of());
     }
 
     @Test

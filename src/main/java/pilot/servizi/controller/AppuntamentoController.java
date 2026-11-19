@@ -5,11 +5,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.CacheControl;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,10 +23,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 import pilot.servizi.dto.request.AppuntamentoRequest;
 import pilot.servizi.dto.request.AppuntamentoStatoRequest;
 import pilot.servizi.dto.response.AppuntamentoResponse;
 import pilot.servizi.entity.AppuntamentoAssistenza;
+import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.service.AppuntamentoAssistenzaService;
 import pilot.servizi.service.AppuntamentoExportService;
 
@@ -85,13 +90,15 @@ public class AppuntamentoController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Aggiorna un appuntamento")
-    public AppuntamentoResponse update(@PathVariable Long id, @Valid @RequestBody AppuntamentoRequest dto) {
+    public AppuntamentoResponse update(@PathVariable Long id, @Valid @RequestBody AppuntamentoRequest dto, Authentication auth) {
+        nonAnnullaSeTecnico(auth, dto.stato());
         return service.update(id, dto);
     }
 
     @PatchMapping("/{id}/stato")
     @Operation(summary = "Cambia lo stato (da confermare, da fare, fatto, annullato)")
-    public AppuntamentoResponse updateStato(@PathVariable Long id, @Valid @RequestBody AppuntamentoStatoRequest dto) {
+    public AppuntamentoResponse updateStato(@PathVariable Long id, @Valid @RequestBody AppuntamentoStatoRequest dto, Authentication auth) {
+        nonAnnullaSeTecnico(auth, dto.stato());
         return service.updateStato(id, dto.stato());
     }
 
@@ -100,5 +107,39 @@ public class AppuntamentoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         service.delete(id);
+    }
+
+    @PostMapping(value = "/{id}/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Allega una foto all'appuntamento (JPEG, PNG o WebP, max 10 MB, fino a 20 foto)")
+    public AppuntamentoResponse.Foto aggiungiFoto(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        return service.aggiungiFoto(id, file);
+    }
+
+    @GetMapping("/{id}/foto/{fotoId}")
+    @Operation(summary = "Scarica una foto dell'appuntamento")
+    public ResponseEntity<byte[]> foto(@PathVariable Long id, @PathVariable Long fotoId) {
+        AppuntamentoAssistenzaService.FotoFile f = service.scaricaFoto(id, fotoId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(f.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + f.nomeFile() + "\"")
+                .header("X-Content-Type-Options", "nosniff")
+                .cacheControl(CacheControl.maxAge(java.time.Duration.ofHours(1)).cachePrivate())
+                .body(f.contenuto());
+    }
+
+    @DeleteMapping("/{id}/foto/{fotoId}")
+    @Operation(summary = "Elimina una foto dell'appuntamento")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void eliminaFoto(@PathVariable Long id, @PathVariable Long fotoId) {
+        service.eliminaFoto(id, fotoId);
+    }
+
+    /** Il tecnico conferma e chiude gli appuntamenti ma non li annulla: è una decisione dell'ufficio. */
+    private static void nonAnnullaSeTecnico(Authentication auth, AppuntamentoAssistenza.Stato stato) {
+        boolean soloTecnico = auth != null && auth.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (soloTecnico && stato == AppuntamentoAssistenza.Stato.ANNULLATO) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, ErrorConstants.AUTH_NON_AUTORIZZATO);
+        }
     }
 }

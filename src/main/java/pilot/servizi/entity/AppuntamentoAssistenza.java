@@ -85,6 +85,10 @@ public class AppuntamentoAssistenza {
     @Column(name = "tecnico", length = 100)
     private String tecnico;
 
+    /** Intervento effettuato generato alla chiusura (stato FATTO); null finché non è stato chiuso. */
+    @Column(name = "intervento_id")
+    private Long interventoId;
+
     @UpdateTimestamp
     @Column(name = "aggiornato_il")
     private LocalDateTime aggiornatoIl;

@@ -64,7 +64,7 @@ Versione: la stessa usata in sviluppo (lo schema è stato creato con **MySQL 9.0
    ```
 5. Verifica: `"C:\Program Files\MySQL\MySQL Server 9.0\bin\mysql.exe" -u servizi -p service -e "SELECT 1"` deve stampare `1`.
 
-Le tabelle **non vanno create a mano**: le crea l'applicazione al primo avvio (Flyway, migrazioni V1 → V9).
+Le tabelle **non vanno create a mano**: le crea l'applicazione al primo avvio (Flyway, migrazioni V1 → V10).
 Se invece devi portare i dati dal database di sviluppo, vedi la sezione "Portare i dati esistenti".
 
 ## 4. Porta e indirizzo
@@ -125,12 +125,12 @@ Se il server è in una rete con più reti, aggiungi `-Profile Domain,Private` pe
 
 Il primo avvio sul database vuoto crea le tabelle (qualche secondo). Controlla in ordine:
 
-1. **Log:** `Get-Content C:\ServiziPilot\logs\ServiziPilot.out.log -Tail 40`. Cerca `Successfully applied 9 migrations` e `Started DemoApplication`.
+1. **Log:** `Get-Content C:\ServiziPilot\logs\ServiziPilot.out.log -Tail 40`. Cerca `Successfully applied 10 migrations` e `Started DemoApplication`.
    Se c'è `APPLICATION FAILED TO START`, vedi "Problemi frequenti".
 2. **Dal server:** apri `http://localhost:8082` nel browser: appare la pagina di accesso.
 3. **Accesso:** utente `admin` (o `ADMIN_USERNAME`), password `ADMIN_PASSWORD`. Subito dopo vai su **Account** e cambia la password.
 4. **Da un altro PC** della rete: apri `http://NOME-SERVER:8082`. Se non risponde è quasi sempre il firewall (passo 7) o il nome del server.
-5. **Utenti:** da **Utenti** crea gli account dei colleghi: `ADMIN` può modificare tutto, `VIEWER` può solo consultare.
+5. **Utenti:** da **Utenti** crea gli account dei colleghi: `ADMIN` può modificare tutto, `TECNICO` consulta tutto e negli appuntamenti scrive il resoconto, allega foto, conferma e chiude (per i tablet dei tecnici), `VIEWER` può solo consultare.
 6. **Prova di scrittura:** crea un cliente, ricarica la pagina, riavvia il servizio (`.\ServiziPilot.exe restart`) e controlla che il cliente ci sia ancora.
 
 ## 9. HTTPS (consigliato se si esce dalla rete locale)
@@ -238,7 +238,7 @@ I dati restano in MySQL e in `C:\ServiziPilot\backup` finché non li elimini tu.
 
 ## Cosa è stato verificato (e cosa no)
 
-- **Verificato** su un altro sistema: build del `.jar`, 140 test automatici, avvio dell'applicazione con tutte le migrazioni (V1-V9) applicate su un database
+- **Verificato** su un altro sistema: build del `.jar`, 151 test automatici, avvio dell'applicazione con tutte le migrazioni (V1-V10) applicate su un database
   H2 in modalità MySQL, accesso con login, sito e API serviti dalla stessa porta (anche con ricarica diretta di una pagina interna), `/api/...` ancora protette.
 - **Non verificato**: le migrazioni su un **MySQL vero** (H2 non è identico; la prima installazione è il banco di prova: controlla il log al passo 8),
   tutti i comandi Windows di questa guida (WinSW, firewall, `icacls`, `schtasks`) e lo script `backup-db.ps1`.

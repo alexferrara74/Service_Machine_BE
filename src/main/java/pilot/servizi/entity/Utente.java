@@ -26,9 +26,13 @@ import java.time.LocalDateTime;
 @Builder
 public class Utente {
 
-    /** ADMIN può fare tutto; VIEWER può solo leggere. */
+    /**
+     * ADMIN può fare tutto; VIEWER può solo leggere; TECNICO legge tutto e, negli appuntamenti,
+     * conferma, chiude (non annulla), scrive resoconto/note e allega foto.
+     */
     public enum Ruolo {
         ADMIN,
+        TECNICO,
         VIEWER
     }
 

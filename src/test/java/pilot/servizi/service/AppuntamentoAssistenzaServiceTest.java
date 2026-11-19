@@ -10,11 +10,17 @@ import pilot.servizi.dto.request.AppuntamentoRequest;
 import pilot.servizi.dto.response.AppuntamentoResponse;
 import pilot.servizi.entity.AppuntamentoAssistenza;
 import pilot.servizi.entity.AppuntamentoAssistenza.Stato;
+import pilot.servizi.entity.AppuntamentoAssistenzaFoto;
 import pilot.servizi.entity.Clienti;
+import pilot.servizi.entity.Interventi;
 import pilot.servizi.entity.StoriaNoleggi;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.mock.web.MockMultipartFile;
 import pilot.servizi.log.ResourceNotFoundException;
+import pilot.servizi.repository.AppuntamentoAssistenzaFotoRepository;
 import pilot.servizi.repository.AppuntamentoAssistenzaRepository;
 import pilot.servizi.repository.ClientiRepository;
+import pilot.servizi.repository.InterventiRepository;
 import pilot.servizi.repository.StoriaNoleggiRepository;
 
 import java.time.LocalDateTime;
@@ -24,10 +30,12 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,6 +51,10 @@ class AppuntamentoAssistenzaServiceTest {
     private StoriaNoleggiRepository noleggiRepo;
     @Mock
     private ClientiRepository clientiRepo;
+    @Mock
+    private AppuntamentoAssistenzaFotoRepository fotoRepo;
+    @Mock
+    private InterventiRepository interventiRepo;
 
     @InjectMocks
     private AppuntamentoAssistenzaService service;
@@ -131,5 +143,124 @@ class AppuntamentoAssistenzaServiceTest {
     void rejectsAnInvertedCalendarRange() {
         assertThrows(IllegalArgumentException.class, () -> service.getByIntervallo(FINE, INIZIO));
         assertThrows(IllegalArgumentException.class, () -> service.getByIntervallo(null, FINE));
+    }
+
+    // ---- chiusura: l'appuntamento fatto diventa un intervento effettuato ----------------------
+
+    private AppuntamentoAssistenza appuntamentoSuNoleggio(Stato stato) {
+        return AppuntamentoAssistenza.builder().id(7L).docId(5).titolo("Sostituzione guarnizione").note("Cambiata guarnizione")
+                .stato(stato).inizio(INIZIO).fine(FINE).build();
+    }
+
+    @Test
+    void closingAnAppointmentOnARentalCreatesACompletedIntervention() {
+        AppuntamentoAssistenza e = appuntamentoSuNoleggio(Stato.DA_FARE);
+        when(repo.findById(7L)).thenReturn(Optional.of(e));
+        when(noleggiRepo.findById(5)).thenReturn(Optional.of(StoriaNoleggi.builder().docId(5).clienteId(9L).matricola(" M-1 ").build()));
+        when(interventiRepo.save(any())).thenAnswer(i -> { Interventi x = i.getArgument(0); x.setInterventoId(70L); return x; });
+        when(repo.save(e)).thenReturn(e);
+
+        service.updateStato(7L, Stato.FATTO);
+
+        ArgumentCaptor<Interventi> saved = ArgumentCaptor.forClass(Interventi.class);
+        verify(interventiRepo).save(saved.capture());
+        Interventi i = saved.getValue();
+        assertEquals(9L, i.getClienteId());
+        assertEquals("M-1", i.getMatricolaAttrezzatura());
+        assertEquals("Sostituzione guarnizione", i.getTitolo());
+        assertEquals("Cambiata guarnizione", i.getSoluzioneApplicata());
+        assertEquals("COMPLETATO", i.getStato());
+        assertEquals(INIZIO, i.getDataApertura());
+        assertNotNull(i.getDataChiusura());
+        assertFalse(i.getDataChiusura().isBefore(i.getDataApertura()));
+        assertEquals(70L, e.getInterventoId());
+    }
+
+    @Test
+    void closingAnAppointmentForAnUnregisteredCustomerCreatesNoIntervention() {
+        AppuntamentoAssistenza e = AppuntamentoAssistenza.builder().id(8L).clienteNome("Bianchi").titolo("T")
+                .stato(Stato.DA_FARE).inizio(INIZIO).fine(FINE).build();
+        when(repo.findById(8L)).thenReturn(Optional.of(e));
+        when(repo.save(e)).thenReturn(e);
+
+        service.updateStato(8L, Stato.FATTO);
+
+        verify(interventiRepo, never()).save(any());
+    }
+
+    @Test
+    void closingTwiceKeepsASingleInterventionAndReopeningPutsItBackInProgress() {
+        AppuntamentoAssistenza e = appuntamentoSuNoleggio(Stato.FATTO);
+        e.setInterventoId(70L);
+        Interventi i = new Interventi();
+        i.setInterventoId(70L);
+        i.setDataApertura(INIZIO);
+        i.setStato("COMPLETATO");
+        i.setDataChiusura(FINE);
+        when(repo.findById(7L)).thenReturn(Optional.of(e));
+        when(repo.save(e)).thenReturn(e);
+        when(interventiRepo.findById(70L)).thenReturn(Optional.of(i));
+        when(interventiRepo.save(i)).thenReturn(i);
+
+        service.updateStato(7L, Stato.DA_FARE);
+        assertEquals("IN_CORSO", i.getStato());
+        assertNull(i.getDataChiusura());
+
+        service.updateStato(7L, Stato.FATTO);
+        assertEquals("COMPLETATO", i.getStato());
+        assertNotNull(i.getDataChiusura());
+        verify(interventiRepo, times(2)).save(i); // sempre lo stesso intervento: nessun duplicato
+        assertEquals(70L, e.getInterventoId());
+    }
+
+    // ---- foto -----------------------------------------------------------------------------
+
+    private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0, 0};
+
+    @Test
+    void attachesAPhotoAndStoresItsRealTypeNotTheFileName() {
+        when(repo.findById(7L)).thenReturn(Optional.of(appuntamentoSuNoleggio(Stato.DA_FARE)));
+        when(fotoRepo.countByAppuntamentoId(7L)).thenReturn(1L);
+        when(fotoRepo.save(any())).thenAnswer(i -> { AppuntamentoAssistenzaFoto f = i.getArgument(0); f.setId(11L); return f; });
+
+        AppuntamentoResponse.Foto r = service.aggiungiFoto(7L, new MockMultipartFile("file", "../tablet 01.jpg", "image/jpeg", PNG));
+
+        ArgumentCaptor<AppuntamentoAssistenzaFoto> saved = ArgumentCaptor.forClass(AppuntamentoAssistenzaFoto.class);
+        verify(fotoRepo).save(saved.capture());
+        assertEquals("image/png", saved.getValue().getContentType());
+        assertEquals("tablet_01.png", saved.getValue().getNomeFile());
+        assertEquals(7L, saved.getValue().getAppuntamentoId());
+        assertEquals(11L, r.id());
+    }
+
+    @Test
+    void rejectsAFileThatIsNotAnImageAndAnEmptyOne() {
+        when(repo.findById(7L)).thenReturn(Optional.of(appuntamentoSuNoleggio(Stato.DA_FARE)));
+        when(fotoRepo.countByAppuntamentoId(7L)).thenReturn(0L);
+
+        assertThrows(IllegalArgumentException.class, () -> service.aggiungiFoto(7L, new MockMultipartFile("file", "x.jpg", "image/jpeg", "<html>non sono una foto</html>".getBytes())));
+        assertThrows(IllegalArgumentException.class, () -> service.aggiungiFoto(7L, new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[0])));
+        verify(fotoRepo, never()).save(any());
+    }
+
+    @Test
+    void refusesPhotosOverTheLimitAndOnCancelledAppointments() {
+        when(repo.findById(7L)).thenReturn(Optional.of(appuntamentoSuNoleggio(Stato.DA_FARE)));
+        when(fotoRepo.countByAppuntamentoId(7L)).thenReturn(20L);
+        assertThrows(DataIntegrityViolationException.class, () -> service.aggiungiFoto(7L, new MockMultipartFile("file", "a.png", "image/png", PNG)));
+
+        when(repo.findById(8L)).thenReturn(Optional.of(appuntamentoSuNoleggio(Stato.ANNULLATO)));
+        assertThrows(DataIntegrityViolationException.class, () -> service.aggiungiFoto(8L, new MockMultipartFile("file", "a.png", "image/png", PNG)));
+        verify(fotoRepo, never()).save(any());
+    }
+
+    @Test
+    void deletingAnAppointmentDeletesItsPhotos() {
+        when(repo.existsById(7L)).thenReturn(true);
+
+        service.delete(7L);
+
+        verify(fotoRepo).deleteByAppuntamentoId(7L);
+        verify(repo).deleteById(7L);
     }
 }

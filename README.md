@@ -305,7 +305,14 @@ L'accesso a `/api/**` richiede un token JWT (`Authorization: Bearer …`) ottenu
 | Ruolo | Cosa può fare |
 |---|---|
 | `ADMIN` | Tutto: letture, scritture, sincronizzazione ERP, gestione utenti (`/api/utenti`) |
+| `TECNICO` | Legge tutto (come `VIEWER`) e, **solo negli appuntamenti**, modifica note e resoconto, conferma, chiude e allega/elimina foto. Non crea, non elimina e non annulla appuntamenti; ogni altra scrittura riceve `403`. Può cambiare la propria password |
 | `VIEWER` | Solo letture (`GET`) ed esportazioni; ogni altra chiamata riceve `403`. Può cambiare la propria password |
+
+### Appuntamenti del calendario: foto e interventi effettuati
+
+- `POST /api/appuntamenti/{id}/foto` (multipart, campo `file`: JPEG, PNG o WebP, max 10 MB, fino a 20 foto), `GET /api/appuntamenti/{id}/foto/{fotoId}`, `DELETE /api/appuntamenti/{id}/foto/{fotoId}`. Le foto stanno nel database (migrazione `V10`) e l'elenco del calendario le riporta nel campo `foto` (id e nome, senza contenuto). Non si aggiungono né tolgono foto a un appuntamento annullato.
+- **Chiudere un appuntamento** (stato `FATTO`) su un noleggio censito **crea un intervento effettuato** (stato `COMPLETATO`): cliente e matricola dal noleggio, titolo dell'appuntamento, `soluzioneApplicata` = note/resoconto, apertura = inizio dell'appuntamento, chiusura = momento della chiusura. Riaprirlo rimette l'intervento `IN_CORSO`; richiuderlo lo ricompleta (sempre lo stesso intervento, mai duplicati); correggere titolo o note aggiorna l'intervento. Con un cliente non censito (senza noleggio) non c'è anagrafica a cui agganciarlo e l'appuntamento resta solo nel calendario.
+- Gli appuntamenti di manutenzione sul noleggio (`/api/storia/noleggi/{docId}/appuntamenti`) alla chiusura registrano invece la manutenzione eseguita nello storico del noleggio.
 
 Il controllo è lato server: nascondere i pulsanti nel frontend è solo comodità. Il ruolo si rilegge dal database a ogni richiesta, quindi disattivare o declassare un utente ha effetto subito; il cambio password invalida i token emessi prima.
 

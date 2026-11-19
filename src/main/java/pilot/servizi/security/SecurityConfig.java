@@ -32,7 +32,9 @@ import java.time.LocalDateTime;
  *   <li>login pubblico;</li>
  *   <li>/api/utenti e /api/registro solo ADMIN;</li>
  *   <li>cambio password e profilo per qualsiasi utente autenticato;</li>
- *   <li>letture (GET/HEAD/OPTIONS) per ADMIN e VIEWER; ogni altro metodo solo ADMIN.</li>
+ *   <li>letture (GET/HEAD/OPTIONS) per ADMIN, TECNICO e VIEWER; ogni altro metodo solo ADMIN;</li>
+ *   <li>eccezione: il TECNICO scrive negli appuntamenti (modifica, conferma, chiude, resoconto, foto) ma non li crea,
+ *       non li elimina e non li annulla.</li>
  * </ul>
  * Il controllo è sempre lato server: nascondere i pulsanti nel frontend è solo comodità.
  */
@@ -56,9 +58,16 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/auth/**").authenticated()
                         .requestMatchers("/api/utenti/**", "/api/registro/**").hasRole(Ruolo.ADMIN.name())
-                        .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole(Ruolo.ADMIN.name(), Ruolo.VIEWER.name())
-                        .requestMatchers(HttpMethod.HEAD, "/api/**").hasAnyRole(Ruolo.ADMIN.name(), Ruolo.VIEWER.name())
+                        .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole(Ruolo.ADMIN.name(), Ruolo.TECNICO.name(), Ruolo.VIEWER.name())
+                        .requestMatchers(HttpMethod.HEAD, "/api/**").hasAnyRole(Ruolo.ADMIN.name(), Ruolo.TECNICO.name(), Ruolo.VIEWER.name())
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
+                        // il tecnico scrive solo negli appuntamenti; "annullato" lo vieta il controller sullo stato richiesto
+                        .requestMatchers(HttpMethod.PUT, "/api/appuntamenti/{id}", "/api/storia/noleggi/{docId}/appuntamenti/{id}").hasAnyRole(Ruolo.ADMIN.name(), Ruolo.TECNICO.name())
+                        .requestMatchers(HttpMethod.PATCH, "/api/appuntamenti/{id}/stato").hasAnyRole(Ruolo.ADMIN.name(), Ruolo.TECNICO.name())
+                        .requestMatchers(HttpMethod.POST, "/api/appuntamenti/{id}/foto", "/api/storia/noleggi/{docId}/appuntamenti/{id}/foto",
+                                "/api/storia/noleggi/{docId}/appuntamenti/{id}/completa").hasAnyRole(Ruolo.ADMIN.name(), Ruolo.TECNICO.name())
+                        .requestMatchers(HttpMethod.DELETE, "/api/appuntamenti/{id}/foto/{fotoId}", "/api/storia/noleggi/{docId}/appuntamenti/{id}/foto/{fotoId}")
+                                .hasAnyRole(Ruolo.ADMIN.name(), Ruolo.TECNICO.name())
                         .requestMatchers("/api/**").hasRole(Ruolo.ADMIN.name())
                         .requestMatchers(HttpMethod.GET, "/**").permitAll() // file del frontend (WEB_DIR): non contengono dati, le API sono tutte sotto /api
                         .anyRequest().denyAll())

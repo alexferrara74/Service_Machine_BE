@@ -3,6 +3,7 @@ package pilot.servizi.dto.response;
 import pilot.servizi.entity.AppuntamentoAssistenza;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * {@code censito} è true quando l'appuntamento è collegato a un noleggio (docId): in quel caso
@@ -23,5 +24,9 @@ public record AppuntamentoResponse(
         AppuntamentoAssistenza.Stato stato,
         LocalDateTime inizio,
         LocalDateTime fine,
-        String tecnico
-) {}
+        String tecnico,
+        List<Foto> foto
+) {
+    /** Foto allegata: il contenuto si scarica da /api/appuntamenti/{id}/foto/{fotoId}. */
+    public record Foto(Long id, String nomeFile) {}
+}
