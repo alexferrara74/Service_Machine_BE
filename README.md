@@ -282,3 +282,11 @@ Specifica OpenAPI in formato JSON:
 ```
 http://localhost:8082/v3/api-docs
 ```
+
+## Clienti, articoli e attrezzature: importati dall'ERP o creati a mano
+
+Clienti (`local_clienti`), catalogo (`local_prodotti`) e attrezzature (`local_attrezzature`) hanno la colonna `origine`: `ERP` per le righe importate dal microservizio, `MANUALE` per quelle create dall'operatore (anche dal form del noleggio). Le risposte API la espongono.
+
+- `POST /api/prodotti/catalogo` registra a mano un articolo (tipicamente un'attrezzatura che l'ERP non ha); il resto del catalogo resta di sola lettura.
+- `local_clienti.id` e `local_prodotti.articolo_id` non sono auto-increment (li assegna l'ERP): per le righe manuali il service assegna l'id a partire da **1.000.000.000**, così non collidono con gli id dell'ERP. Presupposto da verificare: gli id ERP restano sotto il miliardo.
+- La migrazione `V4__origine_clienti.sql` aggiunge `origine` a `local_clienti` con default `ERP`: il microservizio ERP, che non conosce la colonna, continua a scrivere righe `ERP`.
