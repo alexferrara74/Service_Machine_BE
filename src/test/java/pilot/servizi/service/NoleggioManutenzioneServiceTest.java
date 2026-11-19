@@ -174,6 +174,39 @@ class NoleggioManutenzioneServiceTest {
     }
 
     @Test
+    void positiveAppointmentExtendsTheNextDueDate() {
+        service.registraDaAppuntamento(42, NoleggioManutenzione.Tipo.ORDINARIA, "tutto ok", "POSITIVO", 15, 0, 9L);
+
+        var stato = service.getStato(42);
+        assertEquals(LocalDate.now().plusDays(45), stato.prossimaManutenzioneIl());
+        assertEquals(15, stato.giorniProrogaAttivi());
+
+        // una straordinaria positiva successiva allunga ancora lo stesso ciclo
+        service.registraDaAppuntamento(42, NoleggioManutenzione.Tipo.STRAORDINARIA, "verifica", "POSITIVO", 5, 0, 10L);
+        assertEquals(LocalDate.now().plusDays(50), service.getStato(42).prossimaManutenzioneIl());
+
+        // una nuova ordinaria apre un ciclo nuovo: la vecchia proroga non conta più
+        service.registraDaAppuntamento(42, NoleggioManutenzione.Tipo.ORDINARIA, "ok", "NEGATIVO", 0, 0, 11L);
+        assertEquals(LocalDate.now().plusDays(30), service.getStato(42).prossimaManutenzioneIl());
+    }
+
+    @Test
+    void extraordinaryDueDateFollowsOrdinaryCountAndCanBeExtendedIndependently() {
+        // config: 2 ordinarie per straordinaria, intervallo 30 giorni, noleggio di 40 giorni fa
+        var base = service.getStato(42);
+        assertEquals(LocalDate.now().minusDays(40).plusDays(60), base.prossimaStraordinariaIl());
+
+        service.registraDaAppuntamento(42, NoleggioManutenzione.Tipo.ORDINARIA, "ok", "POSITIVO", 10, 25, 9L);
+        var dopo = service.getStato(42);
+        assertEquals(LocalDate.now().plusDays(40), dopo.prossimaManutenzioneIl());
+        assertEquals(LocalDate.now().minusDays(40).plusDays(60 + 25), dopo.prossimaStraordinariaIl());
+        assertEquals(25, dopo.giorniProrogaStraordinariaAttivi());
+
+        service.registraDaAppuntamento(42, NoleggioManutenzione.Tipo.STRAORDINARIA, "rev", "NEGATIVO", 0, 0, 10L);
+        assertEquals(LocalDate.now().plusDays(60), service.getStato(42).prossimaStraordinariaIl());
+    }
+
+    @Test
     void extraordinaryMaintenanceCanBeRegisteredWithoutChangingOrdinarySchedule() {
         var evento = service.registraStraordinaria(42, new NoleggioManutenzioneRequest("guasto"));
 

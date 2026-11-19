@@ -86,7 +86,17 @@ public class NoleggioManutenzioneService {
                 ? noleggio.getDataDoc()
                 : ultimaManutenzioneOrdinaria.getEseguitaIl().toLocalDate();
         ClienteManutenzionePeriodo periodoApplicabile = periodoPerRiferimento(dataRiferimento, periodi);
+        NoleggioManutenzione ultimaStraordinaria = manutenzioniRepo
+                .findFirstByDocIdAndTipoOrderByIdDesc(docId, NoleggioManutenzione.Tipo.STRAORDINARIA)
+                .orElse(null);
+        int prorogaAttiva = prorogaAttiva(docId, ultimaManutenzioneOrdinaria, false);
+        int prorogaStraordinariaAttiva = prorogaAttiva(docId, ultimaStraordinaria, true);
         LocalDate prossimaManutenzione = calcolaProssimaManutenzione(dataRiferimento, periodoApplicabile);
+        if (prossimaManutenzione != null) {
+            prossimaManutenzione = prossimaManutenzione.plusDays(prorogaAttiva);
+        }
+        LocalDate prossimaStraordinaria = calcolaProssimaStraordinaria(
+                noleggio, ultimaStraordinaria, config, periodoApplicabile, prorogaStraordinariaAttiva);
         Long giorniAllaManutenzione = prossimaManutenzione == null
                 ? null
                 : ChronoUnit.DAYS.between(LocalDate.now(), prossimaManutenzione);
@@ -114,8 +124,77 @@ public class NoleggioManutenzioneService {
                 prossimaManutenzione,
                 giorniAllaManutenzione == null ? null : Math.toIntExact(giorniAllaManutenzione),
                 stato,
-                periodoApplicabile == null ? null : periodoApplicabile.getIntervalloGiorni()
+                periodoApplicabile == null ? null : periodoApplicabile.getIntervalloGiorni(),
+                prorogaAttiva,
+                prossimaStraordinaria,
+                prorogaStraordinariaAttiva
         );
+    }
+
+    /**
+     * La straordinaria non ha un intervallo proprio: scade dopo N ordinarie (ordinariePerStraordinaria)
+     * all'intervallo del cliente, contate dall'ultima straordinaria (o dall'inizio del noleggio).
+     */
+    private LocalDate calcolaProssimaStraordinaria(
+            StoriaNoleggi noleggio,
+            NoleggioManutenzione ultimaStraordinaria,
+            NoleggioManutenzioneConfigurazione config,
+            ClienteManutenzionePeriodo periodo,
+            int proroga
+    ) {
+        if (config == null || periodo == null) {
+            return null;
+        }
+        LocalDate riferimento = ultimaStraordinaria == null
+                ? noleggio.getDataDoc()
+                : ultimaStraordinaria.getEseguitaIl().toLocalDate();
+        if (riferimento == null) {
+            return null;
+        }
+        long giorni = (long) config.getOrdinariePerStraordinaria() * periodo.getIntervalloGiorni();
+        return riferimento.plusDays(giorni + proroga);
+    }
+
+    /** Giorni di proroga accumulati nel ciclo corrente: dall'ultima manutenzione del tipo (inclusa) in poi. */
+    private int prorogaAttiva(Integer docId, NoleggioManutenzione ultimaDelTipo, boolean straordinaria) {
+        long da = ultimaDelTipo == null || ultimaDelTipo.getId() == null ? 0L : ultimaDelTipo.getId();
+        return getEventiEntity(docId).stream()
+                .filter(e -> e.getId() == null || e.getId() >= da)
+                .mapToInt(e -> {
+                    Integer g = straordinaria ? e.getGiorniProrogaStraordinaria() : e.getGiorniProrogaOrdinaria();
+                    return g == null ? 0 : g;
+                })
+                .sum();
+    }
+
+    /** Registra una manutenzione nata da un appuntamento: il tipo lo ha scelto l'operatore. */
+    @Transactional
+    public NoleggioManutenzione registraDaAppuntamento(
+            Integer docId,
+            NoleggioManutenzione.Tipo tipo,
+            String note,
+            String esito,
+            int giorniProrogaOrdinaria,
+            int giorniProrogaStraordinaria,
+            Long appuntamentoId
+    ) {
+        StoriaNoleggi noleggio = getNoleggio(docId, "registraDaAppuntamento");
+        NoleggioManutenzioneConfigurazione config = configurazioniRepo.findById(docId).orElse(null);
+        double acquistata = 0d;
+        if (config != null && noleggio.getClienteId() != null) {
+            acquistata = quantitaAcquistata(requireCliente(noleggio, "registraDaAppuntamento"), config);
+        }
+        return manutenzioniRepo.save(NoleggioManutenzione.builder()
+                .docId(docId)
+                .tipo(tipo)
+                .quantitaAcquistataTotale(acquistata)
+                .eseguitaIl(LocalDateTime.now())
+                .note(note)
+                .esito(esito)
+                .giorniProrogaOrdinaria(giorniProrogaOrdinaria)
+                .giorniProrogaStraordinaria(giorniProrogaStraordinaria)
+                .appuntamentoId(appuntamentoId)
+                .build());
     }
 
     @Transactional
@@ -390,7 +469,11 @@ public class NoleggioManutenzioneService {
                 evento.getTipo().name(),
                 evento.getQuantitaAcquistataTotale(),
                 evento.getEseguitaIl(),
-                evento.getNote()
+                evento.getNote(),
+                evento.getEsito(),
+                evento.getGiorniProrogaOrdinaria(),
+                evento.getGiorniProrogaStraordinaria(),
+                evento.getAppuntamentoId()
         );
     }
 }
