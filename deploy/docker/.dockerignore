@@ -1,0 +1,6 @@
+.env
+.env.*
+backup
+web
+*.md
+*.sh

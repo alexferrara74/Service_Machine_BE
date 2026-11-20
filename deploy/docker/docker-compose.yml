@@ -1,0 +1,52 @@
+# Servizi Pilot: database MySQL + applicazione (API e sito sulla stessa porta).
+# Avvio:  docker compose up -d --build        Stato: docker compose ps        Log: docker compose logs -f app
+# I valori segreti stanno nel file .env (copia .env.example e compilalo).
+name: servizi-pilot
+
+services:
+  db:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?imposta MYSQL_ROOT_PASSWORD nel file .env}
+      MYSQL_DATABASE: service
+      MYSQL_USER: servizi
+      MYSQL_PASSWORD: ${DB_PASSWORD:?imposta DB_PASSWORD nel file .env}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --max-allowed-packet=64M          # foto e PDF stanno nel database (fino a 20 MB per file)
+    volumes:
+      - db-data:/var/lib/mysql            # i dati sopravvivono a riavvii, aggiornamenti e ricostruzione dei container
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    # Nessuna porta pubblicata: il database si raggiunge solo dall'applicazione, mai dalla rete.
+
+  app:
+    build: .
+    image: servizi-pilot:local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: "8082"
+      WEB_DIR: /web
+      DB_URL: "jdbc:mysql://db:3306/service?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
+      DB_USERNAME: servizi
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?imposta JWT_SECRET nel file .env (almeno 32 caratteri)}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?imposta ADMIN_PASSWORD nel file .env (almeno 10 caratteri)}
+    volumes:
+      - ./web:/web:ro                     # il sito: per aggiornarlo basta sostituire questa cartella
+    ports:
+      - "${HTTP_PORT:-8082}:8082"         # la porta a cui si collegano i client
+    mem_limit: 1g
+
+volumes:
+  db-data:

@@ -256,6 +256,8 @@ I valori predefiniti servono solo allo sviluppo locale; negli altri ambienti van
 
 **Installazione su Windows Server** (servizio Windows, MySQL, backup, aggiornamenti): [`deploy/windows/INSTALLAZIONE.md`](deploy/windows/INSTALLAZIONE.md).
 
+**Installazione su Linux con Docker** (consigliata: MySQL e applicazione in due container, anche in una VM VirtualBox): [`deploy/docker/INSTALLAZIONE.md`](deploy/docker/INSTALLAZIONE.md).
+
 Il log SQL con i parametri (che possono contenere dati dei clienti) è spento di default; per attivarlo in sviluppo: `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`.
 
 **Sicurezza:** l'accesso a `/api/**` richiede un login con token JWT e due ruoli (`ADMIN` e `VIEWER`): vedi «Utenti e ruoli» più sotto. `JWT_SECRET` è obbligatoria; senza non parte. Esporre comunque il servizio solo su HTTPS (o dietro un proxy che lo termini): il token viaggia a ogni richiesta.
