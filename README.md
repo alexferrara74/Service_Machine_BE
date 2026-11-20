@@ -294,6 +294,71 @@ Specifica OpenAPI in formato JSON:
 http://localhost:8082/v3/api-docs
 ```
 
+## 📦 Rilascio, installazione e aggiornamento
+
+I pacchetti pronti sono nelle **Releases** di questo repository (su GitHub: *Releases* a destra della pagina). Contengono il backend (`app/ServiziPilot.jar`)
+e il frontend già compilato (`web/`): il backend serve anche il sito, quindi si installa **un solo servizio su una sola porta** (predefinita `8082`).
+Le note di ogni release dicono cosa cambia, cosa è stato verificato e se ci sono nuove migrazioni del database.
+
+| Pacchetto | Quando usarlo |
+|---|---|
+| `Pacchetto_Linux_Docker.zip` | **Consigliato.** Un server Linux o una VM (es. VirtualBox con Linux Mint): MySQL e applicazione in due container |
+| `Pacchetto_Windows.zip` | Windows Server: servizio Windows (WinSW) con MySQL installato sul server |
+
+Procedure complete, con firewall, HTTPS, backup su disco esterno e problemi frequenti: [Linux con Docker](deploy/docker/INSTALLAZIONE.md) e
+[Windows Server](deploy/windows/INSTALLAZIONE.md) (la guida è anche dentro ogni zip).
+
+### Prima installazione su Linux con Docker (in breve)
+
+```bash
+# 1. Installa Docker Engine (guida, passo 2), poi:
+unzip Pacchetto_Linux_Docker.zip -d /tmp
+sudo mv /tmp/Pacchetto_Linux_Docker /opt/servizi-pilot && sudo chown -R "$USER": /opt/servizi-pilot
+cd /opt/servizi-pilot
+
+# 2. Configura: compila le quattro password (le variabili vuote bloccano l'avvio di proposito)
+cp .env.example .env && chmod 600 .env && nano .env
+
+# 3. Avvia
+docker compose up -d --build
+docker compose logs -f app          # cerca "Successfully applied ... migrations" e "Started DemoApplication"
+```
+
+Poi apri `http://IP-DEL-SERVER:8082`, accedi con `ADMIN_USERNAME`/`ADMIN_PASSWORD` del `.env`, cambia la password dalla pagina **Account** e crea gli altri utenti
+da **Utenti** (`ADMIN`, `TECNICO` per i tablet, `VIEWER`). Non servono né Java né MySQL sul server: sono nei container. Pianifica il backup (`backup-db.sh` + `cron`, guida passo 8).
+
+### Aggiornare un'installazione esistente
+
+**Linux con Docker** (i dati restano nel volume del database):
+
+```bash
+cd /opt/servizi-pilot
+./backup-db.sh                                  # 1. backup, e copialo fuori dal server
+# 2. sostituisci app/ServiziPilot.jar e il contenuto di web/ con quelli del nuovo zip (i file .env e backup/ non si toccano)
+docker compose up -d --build                    # 3. ricostruisce l'immagine e riavvia: le nuove migrazioni partono da sole
+docker compose logs --tail=40 app               # 4. verifica "Started DemoApplication"
+```
+
+Sui browser dei client premi **Ctrl+F5** una volta. **Tornare indietro:** rimetti il vecchio `.jar` e il vecchio `web/`, ripristina il backup del punto 1 (guida, passo 8)
+e ripeti `docker compose up -d --build`: non rimettere un vecchio `.jar` su un database già migrato senza ripristinare il backup.
+
+**Windows Server:** `ServiziPilot.exe stop`, sostituisci `app\ServiziPilot.jar` e `web\`, `ServiziPilot.exe start` (guida, passo 11). Anche qui prima il backup.
+
+### Preparare un pacchetto (per chi pubblica una release)
+
+```bash
+deploy/crea-pacchetti.sh [cartella-frontend] [cartella-di-uscita]
+```
+
+Costruisce il jar (`./mvnw clean package`) e il frontend (`npm ci` + `ng build --configuration production` in `Service_Machine_FE`), assembla i due pacchetti
+con le guide e i file di `deploy/` e crea gli zip con le impronte SHA-256. Servono Java 21, Node.js/npm e `zip`. **Prima** esegui i test (`./mvnw test` qui,
+`npx ng test --watch=false` nel frontend) e controlla di essere sul commit giusto in entrambi i repository. Poi pubblica con la CLI di GitHub:
+
+```bash
+gh release create vX.Y.Z Pacchetto_Linux_Docker.zip Pacchetto_Windows.zip --repo alexferrara74/Service_Machine_BE \
+   --target <branch> --title "Servizi Pilot X.Y.Z" --notes-file note-release.md   # --prerelease finché non è su main
+```
+
 ## Clienti, articoli e attrezzature: importati dall'ERP o creati a mano
 
 Clienti (`local_clienti`), catalogo (`local_prodotti`) e attrezzature (`local_attrezzature`) hanno la colonna `origine`: `ERP` per le righe importate dal microservizio, `MANUALE` per quelle create dall'operatore (anche dal form del noleggio). Le risposte API la espongono.
