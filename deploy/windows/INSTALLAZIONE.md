@@ -240,5 +240,6 @@ I dati restano in MySQL e in `C:\ServiziPilot\backup` finché non li elimini tu.
 
 - **Verificato** su un altro sistema: build del `.jar`, 151 test automatici, avvio dell'applicazione con tutte le migrazioni (V1-V10) applicate su un database
   H2 in modalità MySQL, accesso con login, sito e API serviti dalla stessa porta (anche con ricarica diretta di una pagina interna), `/api/...` ancora protette.
-- **Non verificato**: le migrazioni su un **MySQL vero** (H2 non è identico; la prima installazione è il banco di prova: controlla il log al passo 8),
+- **Verificato anche** su MySQL **8.4 e 9.1 reali** (container Docker su Linux): le 10 migrazioni, l'avvio con la validazione dello schema e le funzioni principali.
+- **Non verificato**: MySQL **per Windows** in particolare (la prima installazione è il banco di prova: controlla il log al passo 8),
   tutti i comandi Windows di questa guida (WinSW, firewall, `icacls`, `schtasks`) e lo script `backup-db.ps1`.
