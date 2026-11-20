@@ -28,3 +28,16 @@ mv "$FILE.parziale" "$FILE"
 # elimina i backup più vecchi del periodo da tenere
 find "$DEST" -name 'service_*.sql.gz' -mtime +"$GIORNI_DA_TENERE" -delete
 echo "Backup creato: $FILE"
+
+# Copia facoltativa su un disco esterno (es. cartella condivisa di VirtualBox): COPIA_SU=/mnt/backup-esterno nel file .env.
+# Se il disco non è montato NON si scrive nella cartella vuota del disco della VM: si segnala l'errore (codice 2).
+# Il backup locale c'è comunque.
+if [ -n "${COPIA_SU:-}" ]; then
+  if ! mountpoint -q "$COPIA_SU"; then
+    echo "ATTENZIONE: $COPIA_SU non è montato (disco esterno scollegato?). Il backup è solo in $DEST." >&2
+    exit 2
+  fi
+  cp "$FILE" "$COPIA_SU/"
+  find "$COPIA_SU" -name 'service_*.sql.gz' -mtime +"$GIORNI_DA_TENERE" -delete
+  echo "Copia sul disco esterno: $COPIA_SU/$(basename "$FILE")"
+fi

@@ -165,6 +165,37 @@ docker compose start app
 
 Prova il ripristino **una volta** su una VM di prova prima di averne bisogno.
 
+### Copia dei backup su un disco esterno del PC che ospita la VM
+
+Il modo più semplice è una **cartella condivisa di VirtualBox** che punta al disco esterno: nella VM compare come una cartella normale e il backup ci viene copiato.
+
+1. **Sul PC che ospita la VM:** collega il disco e crea una cartella (es. `E:\BackupServiziPilot`). In *Gestione disco* assegna al disco una **lettera fissa**
+   (tasto destro sul volume → *Cambia lettera e percorso*): se la lettera cambia, la cartella condivisa non la trova più.
+2. **Guest Additions nella VM** (una sola volta): dal menu della VM *Dispositivi → Inserisci immagine CD Guest Additions*, poi nella VM:
+
+   ```bash
+   sudo apt install -y build-essential dkms linux-headers-$(uname -r)
+   sudo sh /media/$USER/VBox_GAs_*/VBoxLinuxAdditions.run
+   sudo usermod -aG vboxsf "$USER"
+   sudo reboot
+   ```
+3. **Cartella condivisa:** *Impostazioni della VM → Cartelle condivise → +*: percorso `E:\BackupServiziPilot`, nome `backup`, spunta **Montaggio automatico** e **Rendi permanente**,
+   punto di montaggio `/mnt/backup-esterno`, **senza** "Sola lettura". Da riga di comando:
+   `VBoxManage sharedfolder add "NOME-VM" --name backup --hostpath "E:\BackupServiziPilot" --automount --auto-mount-point /mnt/backup-esterno`
+4. **Verifica nella VM:** `touch /mnt/backup-esterno/prova && rm /mnt/backup-esterno/prova` non deve dare errori.
+5. **Dillo allo script:** aggiungi al file `.env` la riga `COPIA_SU=/mnt/backup-esterno` e prova `./backup-db.sh`: deve stampare `Copia sul disco esterno: …`.
+   Il `cron` resta quello di prima.
+
+Se il disco non è montato (scollegato, lettera cambiata) lo script **non scrive nella cartella vuota** della VM: stampa `ATTENZIONE: … non è montato` ed esce con codice 2.
+Il backup locale viene creato comunque. Guarda ogni tanto `tail backup/backup.log`: un errore lì significa che la copia esterna non sta avvenendo.
+
+Cose da sapere:
+- Un disco collegato allo **stesso PC** protegge dal guasto della VM o del suo disco, non da furto, incendio, ransomware o rottura del PC.
+  Tieni almeno una copia altrove, per esempio ruotando due dischi esterni e portandone uno fuori sede.
+- La VM deve essere **accesa** all'ora del backup (02:00) e il disco collegato prima dell'avvio della VM. Non ho verificato come reagisce ogni versione di VirtualBox
+  all'avvio con una cartella condivisa il cui disco è scollegato: collega il disco prima di avviare la VM.
+- Alternativa sconsigliata: il *passaggio USB* (USB passthrough) assegna il disco alla VM, che lo vede solo lei, e per l'USB 2/3 richiede l'Extension Pack di VirtualBox.
+
 ## 9. Aggiornare a una nuova versione
 
 1. **Backup** (passo 8).
