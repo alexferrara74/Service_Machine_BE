@@ -34,6 +34,8 @@ class AttrezzaturaServiceTest {
     private StoriaNoleggiRepository noleggiRepo;
     @Mock
     private InterventiRepository interventiRepo;
+    @Mock
+    private pilot.servizi.repository.ProdottiCatalogoRepository prodottiRepo;
 
     @InjectMocks
     private AttrezzaturaService service;
@@ -159,5 +161,63 @@ class AttrezzaturaServiceTest {
         var r = service.create(new pilot.servizi.dto.request.AttrezzaturaRequest("M-9", "Idropulitrice", null, null, "DISPONIBILE"));
 
         assertEquals("MANUALE", r.origine());
+    }
+
+    // ---- collegamento all'articolo del catalogo -----------------------------------------------
+
+    private pilot.servizi.entity.ProdottiCatalogo articolo(long id, boolean attrezzatura) {
+        pilot.servizi.entity.ProdottiCatalogo p = new pilot.servizi.entity.ProdottiCatalogo();
+        p.setArticoloId(id);
+        p.setCodice("MAC-" + id);
+        p.setIsAttrezzatura(attrezzatura);
+        return p;
+    }
+
+    private pilot.servizi.dto.request.AttrezzaturaRequest conArticolo(Long articoloId) {
+        return new pilot.servizi.dto.request.AttrezzaturaRequest("M-9", "Macchina", null, null, "DISPONIBILE", articoloId);
+    }
+
+    @Test
+    void linksANewAttrezzaturaToACatalogArticle() {
+        when(prodottiRepo.findById(7L)).thenReturn(Optional.of(articolo(7L, true)));
+        when(repo.findByArticoloId(7L)).thenReturn(Optional.empty());
+        when(repo.save(org.mockito.ArgumentMatchers.any())).thenAnswer(i -> { Attrezzature e = i.getArgument(0); e.setId(9L); return e; });
+
+        var r = service.create(conArticolo(7L));
+
+        assertEquals(7L, r.articoloId());
+    }
+
+    @Test
+    void rejectsAnUnknownArticleAndOneThatIsNotAnEquipment() {
+        when(prodottiRepo.findById(8L)).thenReturn(Optional.empty());
+        when(prodottiRepo.findById(7L)).thenReturn(Optional.of(articolo(7L, false)));
+
+        assertThrows(pilot.servizi.log.ResourceNotFoundException.class, () -> service.create(conArticolo(8L)));
+        assertThrows(IllegalArgumentException.class, () -> service.create(conArticolo(7L)));
+        verify(repo, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void refusesAnArticleAlreadyLinkedToAnotherSerialNumber() {
+        Attrezzature altra = attrezzatura("M-ALTRA");
+        altra.setId(3L);
+        when(prodottiRepo.findById(7L)).thenReturn(Optional.of(articolo(7L, true)));
+        when(repo.findByArticoloId(7L)).thenReturn(Optional.of(altra));
+
+        assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> service.create(conArticolo(7L)));
+        verify(repo, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void updatingWithoutAnArticleKeepsTheExistingLink() {
+        Attrezzature e = attrezzatura("M-9");
+        e.setArticoloId(7L); // per esempio il collegamento scritto dall'ERP
+        when(repo.findById(5L)).thenReturn(Optional.of(e));
+        when(repo.save(e)).thenReturn(e);
+
+        service.update(5L, new pilot.servizi.dto.request.AttrezzaturaRequest("M-9", "Nuova descrizione", null, null, "DISPONIBILE"));
+
+        assertEquals(7L, e.getArticoloId());
     }
 }

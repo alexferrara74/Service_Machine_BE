@@ -12,6 +12,7 @@ import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
 import pilot.servizi.repository.AttrezzatureRepository;
 import pilot.servizi.repository.InterventiRepository;
+import pilot.servizi.repository.ProdottiCatalogoRepository;
 import pilot.servizi.repository.StoriaNoleggiRepository;
 
 import java.util.List;
@@ -29,10 +30,12 @@ public class AttrezzaturaService {
     private final AttrezzatureRepository repo;
     private final StoriaNoleggiRepository noleggiRepo;
     private final InterventiRepository interventiRepo;
+    private final ProdottiCatalogoRepository prodottiRepo;
 
     @Transactional
     public AttrezzaturaResponse create(AttrezzaturaRequest dto) {
         validateRequest(dto, "create");
+        validateArticolo(dto, null, "create");
 
         if (repo.existsByMatricola(dto.matricola().trim())) {
             log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "create", ErrorConstants.ATTREZZATURA_MATRICOLA_DUPLICATA + dto.matricola());
@@ -84,6 +87,7 @@ public class AttrezzaturaService {
     @Transactional
     public AttrezzaturaResponse update(Long id, AttrezzaturaRequest dto) {
         validateRequest(dto, "update");
+        validateArticolo(dto, id, "update");
 
         Attrezzature e = repo.findById(id)
                 .orElseThrow(() -> {
@@ -151,6 +155,27 @@ public class AttrezzaturaService {
         }
     }
 
+    // L'articolo, se indicato, deve essere un'attrezzatura del catalogo e non già collegato a un'altra matricola (un articolo = una matricola).
+    private void validateArticolo(AttrezzaturaRequest dto, Long id, String operation) {
+        if (dto.articoloId() == null) {
+            return;
+        }
+        var articolo = prodottiRepo.findById(dto.articoloId()).orElseThrow(() -> {
+            log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, operation, ErrorConstants.ATTREZZATURA_ARTICOLO_NON_TROVATO + dto.articoloId());
+            return new ResourceNotFoundException(ErrorConstants.ATTREZZATURA_ARTICOLO_NON_TROVATO + dto.articoloId());
+        });
+        if (!Boolean.TRUE.equals(articolo.getIsAttrezzatura())) {
+            log.warn(ErrorConstants.LOG_VALIDATION, ErrorConstants.ERR_VALIDATION, operation, ErrorConstants.ATTREZZATURA_ARTICOLO_NON_ATTREZZATURA + dto.articoloId());
+            throw new IllegalArgumentException(ErrorConstants.ATTREZZATURA_ARTICOLO_NON_ATTREZZATURA + articolo.getCodice());
+        }
+        repo.findByArticoloId(dto.articoloId()).ifPresent(altra -> {
+            if (!altra.getId().equals(id)) {
+                log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, operation, ErrorConstants.ATTREZZATURA_ARTICOLO_GIA_COLLEGATO + altra.getMatricola());
+                throw new DataIntegrityViolationException(ErrorConstants.ATTREZZATURA_ARTICOLO_GIA_COLLEGATO + altra.getMatricola());
+            }
+        });
+    }
+
     // Stato mancante = DISPONIBILE; altrimenti uno dei valori documentati, senza distinguere maiuscole.
     private static String statoOf(AttrezzaturaRequest dto) {
         String stato = Texts.clean(dto.stato());
@@ -163,6 +188,9 @@ public class AttrezzaturaService {
         e.setModello(Texts.clean(dto.modello()));
         e.setMarca(Texts.clean(dto.marca()));
         e.setStato(statoOf(dto));
+        if (dto.articoloId() != null) {
+            e.setArticoloId(dto.articoloId()); // senza articolo nella richiesta il collegamento esistente (anche quello dell'ERP) resta com'è
+        }
     }
 
     private AttrezzaturaResponse toResponse(Attrezzature e) {
@@ -174,7 +202,8 @@ public class AttrezzaturaService {
                 e.getMarca(),
                 e.getStato(),
                 e.getOrigine(),
-                e.getAggiornatoIl()
+                e.getAggiornatoIl(),
+                e.getArticoloId()
         );
     }
 }

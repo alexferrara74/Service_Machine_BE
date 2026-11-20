@@ -14,6 +14,7 @@ public interface AttrezzatureRepository extends JpaRepository<Attrezzature, Long
 
     Optional<Attrezzature> findByMatricola(String matricola);
     boolean existsByMatricola(String matricola);
+    Optional<Attrezzature> findByArticoloId(Long articoloId);
 
     List<Attrezzature> findByStato(String stato);
     List<Attrezzature> findByMarcaIgnoreCase(String marca);

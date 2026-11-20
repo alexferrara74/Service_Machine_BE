@@ -12,6 +12,7 @@ public interface NoleggioAppuntamentoRepository extends JpaRepository<NoleggioAp
 
     List<NoleggioAppuntamento> findByDocIdOrderByDataPrevistaDesc(Integer docId);
     Optional<NoleggioAppuntamento> findByIdAndDocId(Long id, Integer docId);
+    boolean existsByDocIdAndStato(Integer docId, NoleggioAppuntamento.Stato stato);
     List<NoleggioAppuntamento> findByStatoOrderByDataPrevistaAsc(NoleggioAppuntamento.Stato stato);
     List<NoleggioAppuntamento> findAllByOrderByDataPrevistaDesc();
 }

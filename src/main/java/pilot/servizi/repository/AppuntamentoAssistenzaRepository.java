@@ -14,4 +14,5 @@ public interface AppuntamentoAssistenzaRepository extends JpaRepository<Appuntam
     List<AppuntamentoAssistenza> findByInizioLessThanAndFineGreaterThanOrderByInizioAsc(LocalDateTime a, LocalDateTime da);
 
     List<AppuntamentoAssistenza> findByDocIdOrderByInizioAsc(Integer docId);
+    boolean existsByDocIdAndStato(Integer docId, AppuntamentoAssistenza.Stato stato);
 }

@@ -10,5 +10,6 @@ public record AttrezzaturaResponse(
         String marca,
         String stato,
         String origine,
-        LocalDateTime aggiornatoIl
+        LocalDateTime aggiornatoIl,
+        Long articoloId
 ) {}

@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface NoleggioManutenzioneRepository extends JpaRepository<NoleggioManutenzione, Long> {
 
     List<NoleggioManutenzione> findByDocIdOrderByIdAsc(Integer docId);
+    boolean existsByDocId(Integer docId);
 
     Optional<NoleggioManutenzione> findFirstByDocIdOrderByIdDesc(Integer docId);
 

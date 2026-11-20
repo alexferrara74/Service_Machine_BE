@@ -60,6 +60,8 @@ L'endpoint del microservizio ERP non richiede token; anche la chiamata server-to
 
 ### 2. Attrezzature (`/api/attrezzature`)
 > `DELETE` risponde `409 CONFLICT` se la matricola è usata da noleggi o interventi.
+>
+> **Collegamento all'articolo.** `articoloId` (facoltativo) lega la matricola all'articolo del catalogo di cui è l'esemplare: deve esistere ed essere un'attrezzatura (`is_attrezzatura`), e un articolo può avere **una sola** matricola collegata (`409` altrimenti; è il vincolo `uq_local_attrezzature_articolo` del database). Una modifica che non invia `articoloId` lascia il collegamento com'è (anche quello scritto dall'ERP). Le matricole senza collegamento restano valide: nel modulo del noleggio si abbinano ancora per descrizione.
 
 - `POST /api/attrezzature` - Registra nuova attrezzatura
 - `GET /api/attrezzature/{id}` - Dettaglio per ID
@@ -109,7 +111,7 @@ Il catalogo è di sola lettura dal BE: il microservizio ERP continua a popolare 
 - `DELETE /api/magazzino/posizioni/{id}` - Rimuovi articolo da ubicazione
 
 ### 6. Storico Noleggi (`/api/storia/noleggi`)
-- `POST /api/storia/noleggi` - Registra un noleggio inserito dall'operatore. `docId` è generato dal sistema (non va inviato) e identifica anche il PDF allegato. Obbligatori: `clienteId`, `articoloId`, `dataDoc`, `matricola`; cliente, articolo (catalogo) e matricola (attrezzature) devono esistere
+- `POST /api/storia/noleggi` - Registra un noleggio inserito dall'operatore. `docId` è generato dal sistema (non va inviato) e identifica anche il PDF allegato. Obbligatori: `clienteId`, `articoloId`, `dataDoc`, `matricola`; cliente, articolo (catalogo) e matricola (attrezzature) devono esistere e, se la matricola è collegata a un articolo (`articoloId` dell'attrezzatura), il noleggio deve riguardare quello (`400` altrimenti)
 - `GET /api/storia/noleggi/{docId}` - Dettaglio documento
 - `GET /api/storia/noleggi` - Lista documenti noleggio
 - `GET /api/storia/noleggi/pagina?page=0&size=50` - Lista paginata (dimensione massima 200; ordinamento per `docId` decrescente)
@@ -120,7 +122,7 @@ Il catalogo è di sola lettura dal BE: il microservizio ERP continua a popolare 
 - `GET /api/storia/noleggi/matricola/{matricola}` - Noleggi per matricola
 - `GET /api/storia/noleggi/matricola/{matricola}/pagina?page=0&size=50` - Noleggi paginati per matricola
 - `PUT /api/storia/noleggi/{docId}` - Aggiorna noleggio
-- `DELETE /api/storia/noleggi/{docId}` - Cancella noleggio
+- `DELETE /api/storia/noleggi/{docId}` - Cancella noleggio. `409` se ha appuntamenti chiusi (calendario `FATTO`, manutenzione `COMPLETATO`) o manutenzioni registrate: le chiavi esterne del database cancellerebbero appuntamenti, foto e storico. Se invece ha solo appuntamenti da fare o annullati, vanno via col noleggio, insieme al PDF e alla configurazione delle manutenzioni
 - `GET /api/storia/noleggi/{docId}/documento` - Metadati del documento allegato
 - `POST /api/storia/noleggi/{docId}/documento` - Carica o sostituisce il PDF (massimo 20 MB, campo multipart `file`)
 - `GET /api/storia/noleggi/{docId}/documento/download` - Scarica il PDF allegato

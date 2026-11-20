@@ -52,6 +52,10 @@ public class Attrezzature {
     @Column(name = "origine", length = 10, updatable = false)
     private String origine;
 
+    /** Articolo del catalogo di cui questa matricola è l'esemplare; null per le righe senza collegamento. */
+    @Column(name = "articolo_id")
+    private Long articoloId;
+
     @UpdateTimestamp
     @Column(name = "aggiornato_il")
     private LocalDateTime aggiornatoIl;

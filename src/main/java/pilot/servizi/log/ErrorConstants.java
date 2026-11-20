@@ -48,6 +48,11 @@ public final class ErrorConstants {
     public static final String ATTREZZATURA_ELIMINAZIONE_BLOCCATA = "L'attrezzatura non può essere eliminata perché è usata da noleggi o interventi: ";
     public static final String ATTREZZATURA_NON_TROVATA_MATRICOLA = "Attrezzatura non trovata con matricola: ";
     public static final String ATTREZZATURA_MATRICOLA_BLOCCATA = "La matricola non può essere modificata perché è usata da noleggi o interventi: ";
+    public static final String ATTREZZATURA_ARTICOLO_NON_TROVATO = "Articolo del catalogo non trovato con ID ";
+    public static final String ATTREZZATURA_ARTICOLO_NON_ATTREZZATURA = "L'articolo scelto non è un'attrezzatura del catalogo: ";
+    public static final String ATTREZZATURA_ARTICOLO_GIA_COLLEGATO = "Questo articolo è già collegato a un'altra matricola: ";
+    public static final String NOLEGGIO_ELIMINAZIONE_BLOCCATA = "Il noleggio non può essere eliminato perché ha appuntamenti chiusi o manutenzioni registrate: ";
+    public static final String NOLEGGIO_MATRICOLA_ALTRO_ARTICOLO = "La matricola è collegata a un altro articolo del catalogo (ID %d): scegli quello oppure correggi il collegamento dall'anagrafica attrezzature";
     public static final String ATTREZZATURA_STATO_INVALIDO = "Lo stato dell'attrezzatura deve essere DISPONIBILE, IN_USO o IN_MANUTENZIONE";
 
     // --- INTERVENTI ---

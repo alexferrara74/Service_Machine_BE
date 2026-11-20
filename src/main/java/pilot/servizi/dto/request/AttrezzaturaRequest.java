@@ -11,5 +11,10 @@ public record AttrezzaturaRequest(
         @Size(max = 255) String descrizione,
         @Size(max = 100) String modello,
         @Size(max = 100) String marca,
-        @Size(max = 50) String stato
-) {}
+        @Size(max = 50) String stato,
+        Long articoloId
+) {
+    public AttrezzaturaRequest(String matricola, String descrizione, String modello, String marca, String stato) {
+        this(matricola, descrizione, modello, marca, stato, null);
+    }
+}

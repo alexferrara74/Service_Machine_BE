@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pilot.servizi.dto.request.StoriaNoleggioRequest;
@@ -13,7 +14,12 @@ import pilot.servizi.dto.response.PageResponse;
 import pilot.servizi.entity.StoriaNoleggi;
 import pilot.servizi.log.ErrorConstants;
 import pilot.servizi.log.ResourceNotFoundException;
+import pilot.servizi.entity.AppuntamentoAssistenza;
+import pilot.servizi.entity.NoleggioAppuntamento;
+import pilot.servizi.repository.AppuntamentoAssistenzaRepository;
 import pilot.servizi.repository.AttrezzatureRepository;
+import pilot.servizi.repository.NoleggioAppuntamentoRepository;
+import pilot.servizi.repository.NoleggioManutenzioneRepository;
 import pilot.servizi.repository.ClientiRepository;
 import pilot.servizi.repository.ProdottiCatalogoRepository;
 import pilot.servizi.repository.StoriaNoleggiRepository;
@@ -32,6 +38,9 @@ public class StoriaNoleggiService {
     private final ClientiRepository clientiRepo;
     private final ProdottiCatalogoRepository prodottiRepo;
     private final AttrezzatureRepository attrezzatureRepo;
+    private final AppuntamentoAssistenzaRepository appuntamentiRepo;
+    private final NoleggioAppuntamentoRepository appuntamentiNoleggioRepo;
+    private final NoleggioManutenzioneRepository manutenzioniRepo;
 
     @Transactional
     public StoriaNoleggioResponse create(StoriaNoleggioRequest dto) {
@@ -105,6 +114,14 @@ public class StoriaNoleggiService {
             log.warn(ErrorConstants.LOG_NOT_FOUND, ErrorConstants.ERR_NOT_FOUND, "delete", ErrorConstants.NOLEGGIO_NON_TROVATO + docId);
             throw new ResourceNotFoundException(ErrorConstants.NOLEGGIO_NON_TROVATO + docId);
         }
+        // Le chiavi esterne del database cancellerebbero in silenzio appuntamenti, foto e storico manutenzioni: il lavoro già svolto si protegge.
+        // Gli appuntamenti ancora da fare o annullati e il PDF vanno via col noleggio, come dice l'avviso mostrato all'utente.
+        if (appuntamentiRepo.existsByDocIdAndStato(docId, AppuntamentoAssistenza.Stato.FATTO)
+                || appuntamentiNoleggioRepo.existsByDocIdAndStato(docId, NoleggioAppuntamento.Stato.COMPLETATO)
+                || manutenzioniRepo.existsByDocId(docId)) {
+            log.warn(ErrorConstants.LOG_CONFLICT, ErrorConstants.ERR_CONFLICT, "delete", ErrorConstants.NOLEGGIO_ELIMINAZIONE_BLOCCATA + docId);
+            throw new DataIntegrityViolationException(ErrorConstants.NOLEGGIO_ELIMINAZIONE_BLOCCATA + docId);
+        }
         repo.deleteById(docId);
     }
 
@@ -144,8 +161,11 @@ public class StoriaNoleggiService {
             throw notFound(operation, ErrorConstants.NOLEGGIO_ARTICOLO_NON_TROVATO + dto.articoloId());
         }
         String matricola = dto.matricola().trim();
-        if (!attrezzatureRepo.existsByMatricola(matricola)) {
-            throw notFound(operation, ErrorConstants.ATTREZZATURA_NON_TROVATA_MATRICOLA + matricola);
+        var attrezzatura = attrezzatureRepo.findByMatricola(matricola)
+                .orElseThrow(() -> notFound(operation, ErrorConstants.ATTREZZATURA_NON_TROVATA_MATRICOLA + matricola));
+        // Se la matricola è collegata a un articolo, il noleggio deve riguardare quell'articolo.
+        if (attrezzatura.getArticoloId() != null && !attrezzatura.getArticoloId().equals(dto.articoloId())) {
+            throw invalid(operation, String.format(ErrorConstants.NOLEGGIO_MATRICOLA_ALTRO_ARTICOLO, attrezzatura.getArticoloId()));
         }
     }
 
